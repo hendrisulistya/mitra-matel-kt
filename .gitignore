@@ -1,0 +1,96 @@
+#-------------------------------------------------------------------------------
+# Build/Output
+#-------------------------------------------------------------------------------
+# Gradle generated files and directories
+/build
+/out
+.gradle
+**/build/
+/caches/
+/daemon/
+/log/
+
+# Local properties and build system files
+local.properties
+.externalNativeBuild
+.cxx
+
+# Compiled classes and temporary files
+*.class
+*.jar
+*.war
+*.zip
+*.log
+/bin/
+/tmp/
+
+# Test output
+/coverage/
+
+# Generated native code
+**/jniLibs/
+**/libs/
+
+# Gradle wrapper JAR (optional to ignore, often kept for consistency)
+/gradle/wrapper/gradle-wrapper.jar
+
+#-------------------------------------------------------------------------------
+# IDE (Android Studio / IntelliJ IDEA)
+#-------------------------------------------------------------------------------
+# Main configuration directory
+.idea/
+
+# Specific files/directories that should be ignored within .idea/
+.idea/caches
+.idea/libraries/
+.idea/modules.xml
+.idea/runConfigurations
+.idea/workspace.xml
+.idea/assetManagers.xml
+.idea/codeStyles
+.idea/vcs.xml
+.idea/inspectionProfiles
+.idea/dictionaries
+
+# Project/module files
+*.iml
+*.iws
+*.ipr
+/captures
+
+# Logs and temporary files
+studio-dist
+
+#-------------------------------------------------------------------------------
+# Keystores (SECURITY WARNING: DO NOT COMMIT PRODUCTION KEYS)
+#-------------------------------------------------------------------------------
+*.jks
+*.keystore
+
+#-------------------------------------------------------------------------------
+# Operating System & Other Tooling
+#-------------------------------------------------------------------------------
+# macOS
+.DS_Store
+.localized
+xcuserdata
+
+# Windows
+Thumbs.db
+
+# Node.js/JavaScript (if using React Native, WebViews, etc.)
+node_modules/
+
+#-------------------------------------------------------------------------------
+# XCode / Native iOS (for Flutter/React Native/Shared code)
+# Note: These are highly specific and may not be needed for pure Android.
+# We'll remove the complex XCode negations to simplify for pure Android,
+# but include basic XCode/Native-related paths that might appear in an
+# Android project that had shared code origins.
+#-------------------------------------------------------------------------------
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+!*.xcodeproj/project.xcworkspace/
+!*.xcworkspace/contents.xcworkspacedata
+**/xcshareddata/WorkspaceSettings.xcsettings
