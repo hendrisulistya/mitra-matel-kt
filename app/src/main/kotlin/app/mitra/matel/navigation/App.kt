@@ -13,6 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.animation.ExperimentalAnimationApi
@@ -28,17 +29,23 @@ import app.mitra.matel.ui.SignInScreen
 import app.mitra.matel.ui.SignUpScreen
 import app.mitra.matel.ui.WelcomeScreen
 import app.mitra.matel.ui.DashboardScreen
+import app.mitra.matel.utils.SessionManager
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 @Preview
 fun App() {
     MaterialTheme {
+        val context = LocalContext.current
+        val sessionManager = remember { SessionManager(context) }
         val navController = rememberAnimatedNavController()
+
+        // Determine start destination based on login status
+        val startDestination = if (sessionManager.isLoggedIn()) "dashboard" else "welcome"
 
         AnimatedNavHost(
             navController = navController,
-            startDestination = "welcome"
+            startDestination = startDestination
         ) {
             composable(
                 route = "welcome",
@@ -90,7 +97,13 @@ fun App() {
             ) {
                 SignInScreen(
                     onBack = { navController.popBackStack() },
-                    onSignInSuccess = { navController.navigate("dashboard") }
+                    onSignInSuccess = {
+                        navController.navigate("dashboard") {
+                            // Clear back stack to prevent going back to login
+                            popUpTo("welcome") { inclusive = true }
+                        }
+                    },
+                    onNavigateToSignUp = { navController.navigate("signup") }
                 )
             }
 
@@ -109,7 +122,10 @@ fun App() {
                     ) + fadeOut(animationSpec = tween(250))
                 }
             ) {
-                SignUpScreen(onBack = { navController.popBackStack() })
+                SignUpScreen(
+                    onBack = { navController.popBackStack() },
+                    onNavigateToSignIn = { navController.navigate("signin") }
+                )
             }
 
             composable(
@@ -123,8 +139,12 @@ fun App() {
             ) {
                 DashboardScreen(
                     onLogout = {
+                        // Clear session on logout
+                        sessionManager.clearSession()
+
+                        // Navigate to welcome and clear back stack
                         navController.navigate("welcome") {
-                            popUpTo("welcome") { inclusive = true }
+                            popUpTo(0) { inclusive = true }
                         }
                     }
                 )
