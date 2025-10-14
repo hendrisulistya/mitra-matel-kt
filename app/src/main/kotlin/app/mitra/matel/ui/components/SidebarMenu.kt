@@ -1,7 +1,6 @@
 package app.mitra.matel.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -35,13 +34,13 @@ fun SidebarMenu(
         ),
         MenuSection(
             items = listOf(
-                MenuItem("Data Kendaraan saya", Icons.Default.Star),
+                MenuItem("Data Kendaraan Saya", Icons.Default.Star),
                 MenuItem("Input Data Kendaraan", Icons.Default.Add)
             )
         ),
         MenuSection(
             items = listOf(
-                MenuItem("Aktivasi dan Pembayaran", Icons.Default.ShoppingCart),
+                MenuItem("Aktivasi & Pembayaran", Icons.Default.ShoppingCart),
                 MenuItem("Riwayat Pembayaran", Icons.Default.DateRange)
             )
         ),
@@ -57,157 +56,128 @@ fun SidebarMenu(
     Surface(
         modifier = Modifier
             .fillMaxHeight()
-            .width(320.dp),
+            .width(280.dp),
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 8.dp
+        tonalElevation = 2.dp
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
+            modifier = Modifier.fillMaxSize()
         ) {
-            // Profile Badge
-            Card(
+            // Compact Profile Header
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                tonalElevation = 1.dp
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // Avatar
+                    // Minimal Avatar
                     Box(
                         modifier = Modifier
-                            .size(64.dp)
+                            .size(40.dp)
                             .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary)
-                            .border(3.dp, MaterialTheme.colorScheme.surface, CircleShape),
+                            .background(MaterialTheme.colorScheme.primary),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             Icons.Default.Person,
                             contentDescription = "Avatar",
-                            modifier = Modifier.size(36.dp),
+                            modifier = Modifier.size(20.dp),
                             tint = MaterialTheme.colorScheme.onPrimary
                         )
                     }
 
-                    // Info Column
+                    // Compact Info
                     Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                        modifier = Modifier.weight(1f)
                     ) {
-                        // Name
                         Text(
                             text = "John Doe",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
-
-                        // Email
-                        Text(
-                            text = "john.doe@example.com",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.75f)
-                        )
-
-                        // Tier Badge
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.wrapContentWidth()
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(
-                                    Icons.Default.Star,
-                                    contentDescription = "Tier",
-                                    modifier = Modifier.size(14.dp),
-                                    tint = MaterialTheme.colorScheme.onPrimary
-                                )
-                                Text(
-                                    text = "Premium",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onPrimary
-                                )
-                            }
+                            Icon(
+                                Icons.Default.Star,
+                                contentDescription = "Tier",
+                                modifier = Modifier.size(12.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "Premium",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Menu sections with dividers
+            // Menu List with Full Height Distribution
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f),
+                    .weight(1f)
+                    .padding(horizontal = 8.dp),
                 verticalArrangement = Arrangement.SpaceEvenly
             ) {
-                menuSections.forEachIndexed { index, section ->
+                menuSections.forEachIndexed { sectionIndex, section ->
+                    // Menu items in this section
                     section.items.forEach { item ->
                         SidebarMenuItem(
                             item = item,
                             isSelected = selectedItem == item.title,
-                            onClick = { onMenuItemClick(item.title) },
-                            modifier = Modifier.weight(1f)
+                            onClick = { onMenuItemClick(item.title) }
                         )
                     }
-
-                    // Add divider between sections (except after last section)
-                    if (index < menuSections.size - 1) {
+                    
+                    // Add divider after each section except the last one
+                    if (sectionIndex < menuSections.size - 1) {
                         HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            thickness = 1.dp,
                             color = MaterialTheme.colorScheme.outlineVariant
                         )
                     }
                 }
             }
 
-            // Footer with vehicle count and version
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            // Minimal Footer
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
             ) {
-                HorizontalDivider(
-                    modifier = Modifier.padding(bottom = 12.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant
-                )
-                
-                Text(
-                    text = "Total Kendaraan : 10000",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Text(
-                    text = "Version 0.0.000+production (build)",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "10,000 Kendaraan",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "v0.0.1",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                    )
+                }
             }
         }
     }
@@ -217,38 +187,52 @@ fun SidebarMenu(
 fun SidebarMenuItem(
     item: MenuItem,
     isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    onClick: () -> Unit
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .background(
-                if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                else MaterialTheme.colorScheme.surface
-            )
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Start
-    ) {
-        Icon(
-            imageVector = item.icon,
-            contentDescription = item.title,
-            modifier = Modifier.size(26.dp),
-            tint = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
-            else MaterialTheme.colorScheme.onSurface
-        )
+    val backgroundColor = if (isSelected) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+    
+    val contentColor = if (isSelected) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
 
-        Spacer(modifier = Modifier.width(16.dp))
-        Text(
-            text = item.title,
-            style = MaterialTheme.typography.bodyLarge,
-            fontSize = 17.sp,
-            fontWeight = FontWeight.Medium,
-            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
-            else MaterialTheme.colorScheme.onSurface
-        )
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp) // Increased height for better touch targets
+            .padding(vertical = 4.dp, horizontal = 8.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick),
+        color = backgroundColor,
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Icon(
+                imageVector = item.icon,
+                contentDescription = item.title,
+                modifier = Modifier.size(24.dp), // Larger icons
+                tint = contentColor
+            )
+            
+            Text(
+                text = item.title,
+                style = MaterialTheme.typography.bodyLarge, // Larger text
+                fontSize = 16.sp, // Explicit larger font size
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                color = contentColor
+            )
+        }
     }
 }
 
@@ -267,7 +251,7 @@ fun SidebarMenuPreview() {
     MaterialTheme {
         Box(modifier = Modifier.fillMaxSize()) {
             SidebarMenu(
-                selectedItem = "Dashboard",
+                selectedItem = "Profil Saya",
                 onMenuItemClick = {},
                 onClose = {}
             )

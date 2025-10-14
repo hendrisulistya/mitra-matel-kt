@@ -15,12 +15,17 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import app.mitra.matel.ui.components.*
 import app.mitra.matel.ui.screens.*
+import androidx.compose.ui.platform.LocalContext
+import app.mitra.matel.viewmodel.AuthViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     onLogout: () -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val authViewModel = remember { AuthViewModel(context) }
+    
     var selectedMenuItem by remember { mutableStateOf<String?>(null) }
     var isSidebarVisible by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
@@ -215,7 +220,9 @@ fun DashboardScreen(
                 onDismiss = { showLogoutDialog = false },
                 onConfirm = {
                     showLogoutDialog = false
-                    onLogout() // Navigate back to welcome screen
+                    authViewModel.logout { _: Boolean, _: String? ->
+                        onLogout()
+                    }
                 }
             )
         }

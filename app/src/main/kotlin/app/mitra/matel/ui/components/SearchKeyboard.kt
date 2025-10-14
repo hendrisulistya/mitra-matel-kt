@@ -43,36 +43,126 @@ fun SearchKeyboard(
 
 @Composable
 fun NumericKeyboard(onKeyClick: (String) -> Unit) {
-    val keys = listOf(
-        "1", "2", "3",
-        "4", "5", "6",
-        "7", "8", "9",
-        "*", "0", "#"
-    )
-
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(3),
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+    Column(
+        modifier = Modifier.fillMaxSize()
     ) {
-        items(keys) { key ->
-            Button(
-                onClick = { onKeyClick(key) },
-                modifier = Modifier
-                    .aspectRatio(1.5f)
-                    .fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                )
-            ) {
-                Text(
-                    text = key,
-                    style = MaterialTheme.typography.headlineMedium
-                )
+        // First row: 1, 2, 3
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+        ) {
+            listOf("1", "2", "3").forEach { key ->
+                Button(
+                    onClick = { onKeyClick(key) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .border(1.dp, androidx.compose.ui.graphics.Color.Black),
+                    shape = RoundedCornerShape(0.dp),
+                    contentPadding = PaddingValues(0.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = key, fontSize = 48.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        // Second row: 4, 5, 6
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+        ) {
+            listOf("4", "5", "6").forEach { key ->
+                Button(
+                    onClick = { onKeyClick(key) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .border(1.dp, androidx.compose.ui.graphics.Color.Black),
+                    shape = RoundedCornerShape(0.dp),
+                    contentPadding = PaddingValues(0.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = key, fontSize = 48.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        // Third row: 7, 8, 9
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+        ) {
+            listOf("7", "8", "9").forEach { key ->
+                Button(
+                    onClick = { onKeyClick(key) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .border(1.dp, androidx.compose.ui.graphics.Color.Black),
+                    shape = RoundedCornerShape(0.dp),
+                    contentPadding = PaddingValues(0.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = key, fontSize = 48.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        // Fourth row: *, 0, #
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+        ) {
+            listOf("*", "0", "#").forEach { key ->
+                Button(
+                    onClick = { onKeyClick(key) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .border(1.dp, androidx.compose.ui.graphics.Color.Black),
+                    shape = RoundedCornerShape(0.dp),
+                    contentPadding = PaddingValues(0.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = key, fontSize = 48.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         }
     }

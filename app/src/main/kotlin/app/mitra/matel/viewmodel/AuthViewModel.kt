@@ -64,10 +64,19 @@ class AuthViewModel(private val context: Context) : ViewModel() {
     }
 
     /**
-     * Logout - clear session
+     * Logout - call API, then clear session
      */
-    fun logout() {
-        sessionManager.clearSession()
+    fun logout(onResult: (Boolean, String?) -> Unit = { _, _ -> }) {
+        viewModelScope.launch {
+            val result = apiService.logout()
+            result.onSuccess {
+                sessionManager.clearSession()
+                onResult(true, null)
+            }.onFailure { e ->
+                sessionManager.clearSession()
+                onResult(false, e.message)
+            }
+        }
     }
 
     /**
