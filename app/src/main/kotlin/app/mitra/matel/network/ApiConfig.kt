@@ -10,7 +10,7 @@ object ApiConfig {
     
     // API Base URLs
     // For Android Emulator - 10.0.2.2 maps to host machine's localhost
-    private const val LOCAL_BASE_URL = "http://127.0.0.1:3000"
+    private const val LOCAL_BASE_URL = "http://localhost:3000"
 
     // For Real Android Device - use your computer's IP address on local network
     // Find your IP: Mac/Linux: ifconfig | Windows: ipconfig

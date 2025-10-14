@@ -1,10 +1,12 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import com.google.protobuf.gradle.*
 
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinAndroid)
     alias(libs.plugins.composeCompiler)
     kotlin("plugin.serialization") version "1.9.22"
+    id("com.google.protobuf") version "0.9.4"
 }
 
 android {
@@ -64,10 +66,50 @@ android {
             signingConfig = signingConfigs.getByName("release")
         }
     }
+    
+    sourceSets {
+        getByName("main") {
+            proto {
+                srcDir("src/main/proto")
+            }
+        }
+    }
+}
 
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:3.24.4"
+    }
+    plugins {
+        create("java") {
+            artifact = "io.grpc:protoc-gen-grpc-java:1.58.0"
+        }
+        create("grpc") {
+            artifact = "io.grpc:protoc-gen-grpc-java:1.58.0"
+        }
+        create("grpckt") {
+            artifact = "io.grpc:protoc-gen-grpc-kotlin:1.4.1:jdk8@jar"
+        }
+    }
+    generateProtoTasks {
+        all().forEach { task ->
+            task.plugins {
+                create("java") {
+                    option("lite")
+                }
+                create("grpc") {
+                    option("lite")
+                }
+                create("grpckt") {
+                    option("lite")
+                }
+            }
+            task.builtins {
+                create("kotlin") {
+                    option("lite")
+                }
+            }
+        }
     }
 }
 
@@ -105,4 +147,11 @@ dependencies {
 
     // Security - Encrypted SharedPreferences
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    
+    // gRPC and Protobuf dependencies
+    implementation("io.grpc:grpc-okhttp:1.58.0")
+    implementation("io.grpc:grpc-protobuf-lite:1.58.0")
+    implementation("io.grpc:grpc-kotlin-stub:1.4.1")
+    implementation("com.google.protobuf:protobuf-kotlin-lite:3.24.4")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 }

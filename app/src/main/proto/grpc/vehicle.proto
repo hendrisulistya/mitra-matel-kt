@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package grpc;
+
+option go_package = "github.com/JoSoft/mitra-matel/proto_gen/proto/grpc";
+
+message VehicleSearchRequest {
+  string nomor_polisi = 1;
+  string nomor_rangka = 2;
+  string nomor_mesin = 3;
+}
+
+message VehicleSearchResponse {
+  string id = 1;
+  string nomor_polisi = 2;
+  string tipe_kendaraan = 3;
+  string data_version = 4;
+  string finance_name = 5;
+}
+
+message VehicleList {
+  repeated VehicleSearchResponse vehicles = 1;
+}
+
+// Message to handle errors
+message ErrorMessage {
+  string error_message = 1;
+}
+
+// Wrapper message for all server responses
+message Response {
+  oneof payload {
+    VehicleList vehicle_list = 1;
+    ErrorMessage error_message = 2;
+  }
+}
+
+// gRPC service definition
+service VehicleSearchService {
+  // UPDATED: Server streaming to return pure array [{}]
+  rpc SearchVehicle(VehicleSearchRequest) returns (stream VehicleSearchResponse);
+  
+  // Keep other streaming methods unchanged
+  rpc SearchVehicleStream(VehicleSearchRequest) returns (stream VehicleSearchResponse);
+  rpc SearchVehicleBatch(stream VehicleSearchRequest) returns (Response);
+  rpc SearchVehicleBidirectional(stream VehicleSearchRequest) returns (stream VehicleSearchResponse);
+}

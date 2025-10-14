@@ -17,6 +17,8 @@ import app.mitra.matel.ui.components.*
 import app.mitra.matel.ui.screens.*
 import androidx.compose.ui.platform.LocalContext
 import app.mitra.matel.viewmodel.AuthViewModel
+import app.mitra.matel.viewmodel.SearchViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -25,12 +27,12 @@ fun DashboardScreen(
 ) {
     val context = LocalContext.current
     val authViewModel = remember { AuthViewModel(context) }
+    val searchViewModel = remember { SearchViewModel(context) }
+    val searchUiState by searchViewModel.uiState.collectAsState()
     
     var selectedMenuItem by remember { mutableStateOf<String?>(null) }
     var isSidebarVisible by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
-    var searchText by remember { mutableStateOf("") }
-    var searchResults by remember { mutableStateOf<List<String>>(emptyList()) }
     var keyboardLayout by remember { mutableStateOf(KeyboardLayout.QWERTY) }
 
     Box(
@@ -92,7 +94,9 @@ fun DashboardScreen(
             ) {
                 // 1. SearchResultList - 37% height
                 SearchResultList(
-                    results = searchResults,
+                    results = searchUiState.results,
+                    isLoading = searchUiState.isLoading,
+                    error = searchUiState.error,
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(0.37f)
@@ -100,16 +104,12 @@ fun DashboardScreen(
 
                 // 2. SearchForm - 13% height (includes internal spacing)
                 SearchForm(
-                    searchText = searchText,
-                    onSearchTextChange = { searchText = it },
-                    onSearch = {
-                        // Perform search action
-                        searchResults = listOf(
-                            "Result for: $searchText",
-                            "Another result",
-                            "More results..."
-                        )
-                    },
+                    searchText = searchUiState.searchText,
+                    selectedSearchType = searchUiState.searchType,
+                    onSearchTextChange = { searchViewModel.updateSearchText(it) },
+                    onSearchTypeChange = { searchViewModel.updateSearchType(it) },
+                    onSearch = { searchViewModel.performSearch() },
+                    onClear = { searchViewModel.clearResults() },
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(0.13f)
@@ -121,11 +121,11 @@ fun DashboardScreen(
                     onKeyClick = { key ->
                         if (key == "⌫") {
                             // Handle backspace
-                            if (searchText.isNotEmpty()) {
-                                searchText = searchText.dropLast(1)
+                            if (searchUiState.searchText.isNotEmpty()) {
+                                searchViewModel.updateSearchText(searchUiState.searchText.dropLast(1))
                             }
                         } else {
-                            searchText += key
+                            searchViewModel.updateSearchText(searchUiState.searchText + key)
                         }
                     },
                     modifier = Modifier
