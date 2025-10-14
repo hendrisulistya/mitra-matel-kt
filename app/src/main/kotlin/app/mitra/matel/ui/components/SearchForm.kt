@@ -195,16 +195,11 @@ fun SearchForm(
                                 .padding(start = 12.dp, end = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                Icons.Default.Search,
-                                contentDescription = "Search",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
                             Spacer(modifier = Modifier.width(8.dp))
                             Box(modifier = Modifier.weight(1f)) {
                                 if (searchText.isEmpty()) {
                                     Text(
-                                        "Search...",
+                                        "Pencarian $selectedSearchType",
                                         style = TextStyle(
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             fontSize = 16.sp
@@ -212,15 +207,6 @@ fun SearchForm(
                                     )
                                 }
                                 innerTextField()
-                            }
-                            if (searchText.isNotEmpty()) {
-                                IconButton(onClick = { onSearchTextChange("") }) {
-                                    Icon(
-                                        Icons.Default.Clear,
-                                        contentDescription = "Clear",
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
                             }
                         }
                     }
