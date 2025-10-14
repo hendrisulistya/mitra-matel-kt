@@ -29,6 +29,7 @@ import app.mitra.matel.ui.SignInScreen
 import app.mitra.matel.ui.SignUpScreen
 import app.mitra.matel.ui.WelcomeScreen
 import app.mitra.matel.ui.DashboardScreen
+import app.mitra.matel.ui.screens.MicSearchContent
 import app.mitra.matel.utils.SessionManager
 
 @OptIn(ExperimentalAnimationApi::class)
@@ -146,7 +147,30 @@ fun App() {
                         navController.navigate("welcome") {
                             popUpTo(0) { inclusive = true }
                         }
+                    },
+                    onNavigateToMicSearch = {
+                        navController.navigate("mic_search")
                     }
+                )
+            }
+
+            composable(
+                route = "mic_search",
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(300)
+                    ) + fadeIn(animationSpec = tween(300))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(250)
+                    ) + fadeOut(animationSpec = tween(250))
+                }
+            ) {
+                MicSearchContent(
+                    onBack = { navController.popBackStack() }
                 )
             }
         }

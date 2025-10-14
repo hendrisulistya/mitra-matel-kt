@@ -6,7 +6,7 @@ package app.mitra.matel.network
  */
 object ApiConfig {
     // Toggle this to switch between environments
-    private const val isProduction = false
+    private const val isProduction = true
     
     // API Base URLs
     // For Android Emulator - 10.0.2.2 maps to host machine's localhost
@@ -18,9 +18,25 @@ object ApiConfig {
 
     private const val PRODUCTION_BASE_URL = "https://api.mitra-matel.com"
 
+    // gRPC Configuration
+    private const val LOCAL_GRPC_HOST = "localhost"
+    private const val LOCAL_GRPC_PORT = 50051
+    private const val PRODUCTION_GRPC_HOST = "grpc.mitra-matel.com"
+    private const val PRODUCTION_GRPC_PORT = 443
+
     // Get current base URL based on environment
     val BASE_URL: String
         get() = if (isProduction) PRODUCTION_BASE_URL else LOCAL_BASE_URL
+
+    // Get current gRPC configuration
+    val GRPC_HOST: String
+        get() = if (isProduction) PRODUCTION_GRPC_HOST else LOCAL_GRPC_HOST
+    
+    val GRPC_PORT: Int
+        get() = if (isProduction) PRODUCTION_GRPC_PORT else LOCAL_GRPC_PORT
+    
+    val IS_PRODUCTION: Boolean
+        get() = isProduction
 
     // API Endpoints
     object Endpoints {

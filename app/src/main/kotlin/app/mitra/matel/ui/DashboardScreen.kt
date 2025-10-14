@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,15 +20,18 @@ import androidx.compose.ui.platform.LocalContext
 import app.mitra.matel.viewmodel.AuthViewModel
 import app.mitra.matel.viewmodel.SearchViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.mitra.matel.network.GrpcService
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
-    onLogout: () -> Unit = {}
+    onLogout: () -> Unit,
+    onNavigateToMicSearch: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val authViewModel = remember { AuthViewModel(context) }
-    val searchViewModel = remember { SearchViewModel(context) }
+    val grpcService = remember { GrpcService(context) }
+    val searchViewModel = remember { SearchViewModel(grpcService) }
     val searchUiState by searchViewModel.uiState.collectAsState()
     
     var selectedMenuItem by remember { mutableStateOf<String?>(null) }
@@ -95,7 +99,6 @@ fun DashboardScreen(
                 // 1. SearchResultList - 37% height
                 SearchResultList(
                     results = searchUiState.results,
-                    isLoading = searchUiState.isLoading,
                     error = searchUiState.error,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -110,6 +113,9 @@ fun DashboardScreen(
                     onSearchTypeChange = { searchViewModel.updateSearchType(it) },
                     onSearch = { searchViewModel.performSearch() },
                     onClear = { searchViewModel.clearResults() },
+                    searchDurationMs = searchUiState.searchDurationMs,
+                    grpcConnectionStatus = searchUiState.grpcConnectionStatus,
+                    onMicClick = onNavigateToMicSearch,
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(0.13f)
@@ -147,7 +153,7 @@ fun DashboardScreen(
                     title = { Text(screen) },
                     navigationIcon = {
                         IconButton(onClick = { selectedMenuItem = null }) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -233,6 +239,9 @@ fun DashboardScreen(
 @Composable
 fun DashboardScreenPreview() {
     MaterialTheme {
-        DashboardScreen()
+        DashboardScreen(
+            onLogout = {},
+            onNavigateToMicSearch = {}
+        )
     }
 }

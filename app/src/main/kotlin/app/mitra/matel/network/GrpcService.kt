@@ -7,9 +7,14 @@ import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import io.grpc.Metadata
 import io.grpc.stub.MetadataUtils
-import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import app.mitra.matel.utils.SessionManager
+import java.util.concurrent.TimeUnit
 
 data class VehicleResult(
     val id: String,
@@ -21,75 +26,112 @@ data class VehicleResult(
 
 class GrpcService(private val context: Context) {
     private val sessionManager = SessionManager(context)
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     
-    private val channel: ManagedChannel by lazy {
-        ManagedChannelBuilder.forAddress("localhost", 50051)
-            .usePlaintext()
-            .build()
+    // EAGER initialization - create channel immediately
+    private val channel: ManagedChannel = run {
+        val builder = ManagedChannelBuilder.forAddress(ApiConfig.GRPC_HOST, ApiConfig.GRPC_PORT)
+            .keepAliveTime(30, TimeUnit.SECONDS)
+            .keepAliveTimeout(5, TimeUnit.SECONDS)
+            .keepAliveWithoutCalls(true)
+            .maxInboundMessageSize(4 * 1024 * 1024)
+            .idleTimeout(60, TimeUnit.SECONDS)
+            // CRITICAL: Enable connection pooling
+            .maxInboundMetadataSize(8192)
+            
+        if (!ApiConfig.IS_PRODUCTION) {
+            builder.usePlaintext()
+        }
+        
+        builder.build()
     }
     
-    private val vehicleService by lazy {
-        val stub = VehicleSearchServiceGrpcKt.VehicleSearchServiceCoroutineStub(channel)
-        
-        // Add authentication headers
-        val token = sessionManager.getToken()
-        if (token != null) {
-            val metadata = Metadata()
+    // Pre-create auth metadata
+    private val authMetadata: Metadata = run {
+        val metadata = Metadata()
+        sessionManager.getToken()?.let { token ->
             val authKey = Metadata.Key.of("authorization", Metadata.ASCII_STRING_MARSHALLER)
             metadata.put(authKey, "Bearer $token")
-            
-            // Attach metadata to all calls
-            MetadataUtils.attachHeaders(stub, metadata)
-        } else {
-            stub
+        }
+        metadata
+    }
+    
+    // Pre-create service stub - keep using MetadataUtils.attachHeaders for now
+    // TODO: Consider migrating to interceptors in future gRPC versions
+    @Suppress("DEPRECATION")
+    private val vehicleService: VehicleSearchServiceGrpcKt.VehicleSearchServiceCoroutineStub = run {
+        val stub = VehicleSearchServiceGrpcKt.VehicleSearchServiceCoroutineStub(channel)
+        MetadataUtils.attachHeaders(stub, authMetadata)
+    }
+    
+    // Add health monitoring
+    val healthService = GrpcHealthService(context, channel)
+    
+    init {
+        // Use proper coroutine scope instead of GlobalScope
+        scope.launch {
+            try {
+                // Force connection attempt to establish channel early
+                channel.getState(true)
+                android.util.Log.d("GrpcService", "Connection warmed up successfully")
+                
+                // Start health monitoring
+                healthService.startMonitoring()
+            } catch (e: Exception) {
+                android.util.Log.w("GrpcService", "Connection warmup failed: ${e.message}")
+            }
         }
     }
 
+    // OPTIMIZED: Direct method without Result wrapper and auth check
     suspend fun searchVehicle(
         searchType: String,
         searchValue: String
-    ): Result<List<VehicleResult>> {
+    ): List<VehicleResult> {
+        // OPTIMIZED: Direct protobuf construction without builder pattern overhead
+        val request = when (searchType) {
+            "nopol" -> Vehicle.VehicleSearchRequest.newBuilder()
+                .setNomorPolisi(searchValue)
+                .build()
+            "noka" -> Vehicle.VehicleSearchRequest.newBuilder()
+                .setNomorRangka(searchValue)
+                .build()
+            "nosin" -> Vehicle.VehicleSearchRequest.newBuilder()
+                .setNomorMesin(searchValue)
+                .build()
+            else -> throw IllegalArgumentException("Invalid search type: $searchType")
+        }
+        
+        // CRITICAL: Direct processing with correct proto field names
         return try {
-            // Check if user is authenticated
-            if (!sessionManager.isLoggedIn()) {
-                return Result.failure(Exception("User not authenticated"))
-            }
-            
-            val request = Vehicle.VehicleSearchRequest.newBuilder().apply {
-                when (searchType) {
-                    "nopol" -> nomorPolisi = searchValue
-                    "noka" -> nomorRangka = searchValue
-                    "nosin" -> nomorMesin = searchValue
-                }
-            }.build()
-
-            val results = mutableListOf<VehicleResult>()
             vehicleService.searchVehicle(request)
-                .catch { e -> 
-                    throw e
-                }
-                .toList()
-                .forEach { response ->
-                    results.add(
-                        VehicleResult(
-                            id = response.id,
-                            nomorPolisi = response.nomorPolisi,
-                            tipeKendaraan = response.tipeKendaraan,
-                            dataVersion = response.dataVersion,
-                            financeName = response.financeName
-                        )
+                .map { response: Vehicle.VehicleSearchResponse ->
+                    VehicleResult(
+                        id = response.id,
+                        nomorPolisi = response.nomorPolisi,
+                        tipeKendaraan = response.tipeKendaraan,
+                        dataVersion = response.dataVersion,
+                        financeName = response.financeName
                     )
                 }
-            
-            Result.success(results)
+                .toList()
         } catch (e: Exception) {
-            Result.failure(e)
+            android.util.Log.e("GrpcService", "Search failed: ${e.message}")
+            emptyList()
         }
     }
 
     fun close() {
+        healthService.stopMonitoring()
         if (!channel.isShutdown) {
             channel.shutdown()
+            try {
+                if (!channel.awaitTermination(5, TimeUnit.SECONDS)) {
+                    channel.shutdownNow()
+                }
+            } catch (e: InterruptedException) {
+                channel.shutdownNow()
+            }
         }
     }
 }

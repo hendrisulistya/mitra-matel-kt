@@ -15,7 +15,6 @@ import app.mitra.matel.network.VehicleResult
 @Composable
 fun SearchResultList(
     results: List<VehicleResult> = emptyList(),
-    isLoading: Boolean = false,
     error: String? = null,
     modifier: Modifier = Modifier
 ) {
@@ -24,16 +23,6 @@ fun SearchResultList(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         when {
-            isLoading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator()
-                }
-            }
             error != null -> {
                 Box(
                     modifier = Modifier
@@ -77,8 +66,17 @@ fun SearchResultList(
                     contentPadding = PaddingValues(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(results) { vehicle ->
-                        VehicleResultCard(vehicle = vehicle)
+                    items(results.size) { index ->
+                        VehicleResultCard(vehicle = results[index])
+                        
+                        // Add separator line after each item except the last one
+                        if (index < results.size - 1) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                                thickness = 1.dp,
+                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                            )
+                        }
                     }
                 }
             }
@@ -99,27 +97,42 @@ private fun VehicleResultCard(
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = vehicle.nomorPolisi,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "Tipe: ${vehicle.tipeKendaraan}",
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Text(
-                text = "Finance: ${vehicle.financeName}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = "Version: ${vehicle.dataVersion}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            // Row 1: nomor_polisi (left) | finance_name (right)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = vehicle.nomorPolisi,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = vehicle.financeName,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            
+            // Row 2: tipe_kendaraan (left) | dataVersion (right)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = vehicle.tipeKendaraan,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = vehicle.dataVersion,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }

@@ -23,6 +23,8 @@ import coil.compose.AsyncImage
 import coil.decode.SvgDecoder
 import coil.request.ImageRequest
 import app.mitra.matel.R
+import app.mitra.matel.network.GrpcConnectionStatus
+import io.grpc.ConnectivityState
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,14 +36,16 @@ fun SearchForm(
     onSearchTypeChange: (String) -> Unit,
     onSearch: () -> Unit,
     onClear: () -> Unit,
+    searchDurationMs: Long? = null,
+    grpcConnectionStatus: GrpcConnectionStatus? = null,
+    onMicClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var dropdownExpanded by remember { mutableStateOf(false) }
     
-    // Debounced search effect
+    // Immediate search effect (no debounce delay)
     LaunchedEffect(searchText, selectedSearchType) {
         if (searchText.isNotBlank() && searchText.length >= 1) {
-            delay(100) // 100ms debounce delay
             onSearch()
         }
     }
@@ -79,11 +83,52 @@ fun SearchForm(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Status",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontSize = 12.sp
-                    )
+                    // Enhanced status indicator with gRPC monitoring
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Connection status indicator
+                        grpcConnectionStatus?.let { status ->
+                            val (statusIcon, statusColor) = when {
+                                status.isHealthy && status.state == ConnectivityState.READY -> "🟢" to MaterialTheme.colorScheme.primary
+                                status.state == ConnectivityState.CONNECTING -> "🟡" to MaterialTheme.colorScheme.tertiary
+                                status.state == ConnectivityState.TRANSIENT_FAILURE -> "🟠" to MaterialTheme.colorScheme.error
+                                else -> "🔴" to MaterialTheme.colorScheme.error
+                            }
+                            
+                            Text(
+                                text = statusIcon,
+                                fontSize = 10.sp
+                            )
+                            
+                            // Latency indicator
+                            if (status.latencyMs > 0) {
+                                Text(
+                                    text = "${status.latencyMs}ms",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontSize = 10.sp,
+                                    color = when {
+                                        status.latencyMs < 100 -> MaterialTheme.colorScheme.primary
+                                        status.latencyMs < 300 -> MaterialTheme.colorScheme.tertiary
+                                        else -> MaterialTheme.colorScheme.error
+                                    }
+                                )
+                            }
+                        }
+                        
+                        // Search duration (existing functionality)
+                        if (searchDurationMs != null) {
+                            Text(
+                                text = "⇆ ${String.format("%.3f", searchDurationMs / 1000.0)}s",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else {
+                            Spacer(modifier = Modifier.width(1.dp))
+                        }
+                    }
 
                     ExposedDropdownMenuBox(
                         expanded = dropdownExpanded,
@@ -91,7 +136,7 @@ fun SearchForm(
                     ) {
                         Box(
                             modifier = Modifier
-                                .menuAnchor()
+                                .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
                                 .width(120.dp)
                                 .height(30.dp)
                                 .background(
@@ -151,7 +196,7 @@ fun SearchForm(
                     }
                 }
 
-                // SearchInput - takes 60% height
+                // Input row - takes 60% height
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -161,7 +206,7 @@ fun SearchForm(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     IconButton(
-                        onClick = { /* TODO: Implement mic action */ }
+                        onClick = onMicClick
                     ) {
                         AsyncImage(
                             model = ImageRequest.Builder(LocalContext.current)
@@ -220,17 +265,10 @@ fun SearchForm(
                                     }
                                     innerTextField()
                                 }
-                                
-                                // Show loading indicator when searching
-                                if (searchText.length >= 2) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(16.dp),
-                                        strokeWidth = 2.dp
-                                    )
-                                }
                             }
                         }
                     )
+                    
                     Button(
                         onClick = onClear,
                         modifier = Modifier.size(48.dp),
