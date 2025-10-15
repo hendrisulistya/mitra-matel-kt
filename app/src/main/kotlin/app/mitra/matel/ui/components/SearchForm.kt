@@ -43,13 +43,8 @@ fun SearchForm(
 ) {
     var dropdownExpanded by remember { mutableStateOf(false) }
     
-    // Immediate search effect (no debounce delay)
-    LaunchedEffect(searchText, selectedSearchType) {
-        if (searchText.isNotBlank() && searchText.length >= 1) {
-            onSearch()
-        }
-    }
-
+    // Remove the LaunchedEffect completely - debouncing now handled in ViewModel
+    
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -83,53 +78,107 @@ fun SearchForm(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Enhanced status indicator with gRPC monitoring
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Connection status indicator
-                        grpcConnectionStatus?.let { status ->
-                            val (statusIcon, statusColor) = when {
-                                status.isHealthy && status.state == ConnectivityState.READY -> "🟢" to MaterialTheme.colorScheme.primary
-                                status.state == ConnectivityState.CONNECTING -> "🟡" to MaterialTheme.colorScheme.tertiary
-                                status.state == ConnectivityState.TRANSIENT_FAILURE -> "🟠" to MaterialTheme.colorScheme.error
-                                else -> "🔴" to MaterialTheme.colorScheme.error
-                            }
-                            
-                            Text(
-                                text = statusIcon,
-                                fontSize = 10.sp
-                            )
-                            
-                            // Latency indicator
-                            if (status.latencyMs > 0) {
-                                Text(
-                                    text = "${status.latencyMs}ms",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontSize = 10.sp,
-                                    color = when {
-                                        status.latencyMs < 100 -> MaterialTheme.colorScheme.primary
-                                        status.latencyMs < 300 -> MaterialTheme.colorScheme.tertiary
-                                        else -> MaterialTheme.colorScheme.error
-                                    }
-                                )
-                            }
+                    // 1. Status indicator (left)
+                    grpcConnectionStatus?.let { status ->
+                        val (statusText, statusColor) = when {
+                            status.isHealthy && status.state == ConnectivityState.READY -> "READY" to MaterialTheme.colorScheme.primary
+                            status.state == ConnectivityState.CONNECTING -> "CONNECTING" to MaterialTheme.colorScheme.tertiary
+                            status.state == ConnectivityState.TRANSIENT_FAILURE -> "RETRY" to MaterialTheme.colorScheme.error
+                            status.state == ConnectivityState.IDLE -> "IDLE" to MaterialTheme.colorScheme.onSurfaceVariant
+                            else -> "ERROR" to MaterialTheme.colorScheme.error
                         }
                         
-                        // Search duration (existing functionality)
-                        if (searchDurationMs != null) {
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    statusColor.copy(alpha = 0.1f),
+                                    RoundedCornerShape(6.dp)
+                                )
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = statusText,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontSize = 9.sp,
+                                    color = statusColor,
+                                    fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+                                )
+                                
+                                if (status.latencyMs > 0) {
+                                    val latencyColor = when {
+                                        status.latencyMs < 50 -> MaterialTheme.colorScheme.primary
+                                        status.latencyMs < 150 -> MaterialTheme.colorScheme.tertiary
+                                        status.latencyMs < 300 -> MaterialTheme.colorScheme.secondary
+                                        else -> MaterialTheme.colorScheme.error
+                                    }
+                                    
+                                    Text(
+                                        text = "${status.latencyMs}ms",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontSize = 9.sp,
+                                        color = latencyColor,
+                                        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+                                    )
+                                }
+                                
+                                if (!status.errorMessage.isNullOrEmpty()) {
+                                    Text(
+                                        text = "ERR",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontSize = 9.sp,
+                                        color = MaterialTheme.colorScheme.error,
+                                        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                    } ?: run {
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f),
+                                    RoundedCornerShape(6.dp)
+                                )
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
                             Text(
-                                text = "⇆ ${String.format("%.3f", searchDurationMs / 1000.0)}s",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                text = "OFFLINE",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontSize = 9.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
                             )
-                        } else {
-                            Spacer(modifier = Modifier.width(1.dp))
                         }
                     }
-
+                    
+                    // 2. Search duration (center)
+                    if (searchDurationMs != null) {
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                    RoundedCornerShape(6.dp)
+                                )
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "${searchDurationMs}ms",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontSize = 9.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+                            )
+                        }
+                    } else {
+                        // Empty spacer when no search duration
+                        Spacer(modifier = Modifier.width(1.dp))
+                    }
+                    
+                    // 3. Dropdown (right)
                     ExposedDropdownMenuBox(
                         expanded = dropdownExpanded,
                         onExpandedChange = { dropdownExpanded = it }
@@ -167,31 +216,20 @@ fun SearchForm(
                                 )
                             }
                         }
+                        
                         ExposedDropdownMenu(
                             expanded = dropdownExpanded,
                             onDismissRequest = { dropdownExpanded = false }
                         ) {
-                            DropdownMenuItem(
-                                text = { Text("nopol") },
-                                onClick = {
-                                    onSearchTypeChange("nopol")
-                                    dropdownExpanded = false
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("noka") },
-                                onClick = {
-                                    onSearchTypeChange("noka")
-                                    dropdownExpanded = false
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("nosin") },
-                                onClick = {
-                                    onSearchTypeChange("nosin")
-                                    dropdownExpanded = false
-                                }
-                            )
+                            listOf("nopol", "noka", "nosin").forEach { option ->
+                                DropdownMenuItem(
+                                    text = { Text(option, fontSize = 12.sp) },
+                                    onClick = {
+                                        onSearchTypeChange(option)
+                                        dropdownExpanded = false
+                                    }
+                                )
+                            }
                         }
                     }
                 }

@@ -88,7 +88,6 @@ class GrpcService(private val context: Context) {
         searchType: String,
         searchValue: String
     ): List<VehicleResult> {
-        // OPTIMIZED: Direct protobuf construction without builder pattern overhead
         val request = when (searchType) {
             "nopol" -> Vehicle.VehicleSearchRequest.newBuilder()
                 .setNomorPolisi(searchValue)
@@ -102,10 +101,10 @@ class GrpcService(private val context: Context) {
             else -> throw IllegalArgumentException("Invalid search type: $searchType")
         }
         
-        // CRITICAL: Direct processing with correct proto field names
         return try {
-            vehicleService.searchVehicle(request)
-                .map { response: Vehicle.VehicleSearchResponse ->
+            // ✅ CORRECT STREAMING METHOD: SearchVehicleStream
+            vehicleService.searchVehicleStream(request)
+                .map { response ->
                     VehicleResult(
                         id = response.id,
                         nomorPolisi = response.nomorPolisi,

@@ -96,13 +96,13 @@ fun DashboardScreen(
                     .fillMaxSize()
                     .weight(1f)
             ) {
-                // 1. SearchResultList - 37% height
+                // 1. SearchResultList - 39% height (increased from 37%)
                 SearchResultList(
                     results = searchUiState.results,
                     error = searchUiState.error,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(0.37f)
+                        .weight(0.39f)
                 )
 
                 // 2. SearchForm - 13% height (includes internal spacing)
@@ -121,22 +121,25 @@ fun DashboardScreen(
                         .weight(0.13f)
                 )
 
-                // 3. SearchKeyboard - 50% height
+                // 3. SearchKeyboard - 48% height (reduced from 50%)
+                // In DashboardScreen, modify the SearchKeyboard handler:
                 SearchKeyboard(
                     keyboardLayout = keyboardLayout,
                     onKeyClick = { key ->
                         if (key == "⌫") {
-                            // Handle backspace
-                            if (searchUiState.searchText.isNotEmpty()) {
-                                searchViewModel.updateSearchText(searchUiState.searchText.dropLast(1))
+                            // Use current ViewModel state instead of UI state
+                            val currentText = searchViewModel.uiState.value.searchText
+                            if (currentText.isNotEmpty()) {
+                                searchViewModel.updateSearchText(currentText.dropLast(1))
                             }
                         } else {
-                            searchViewModel.updateSearchText(searchUiState.searchText + key)
+                            val currentText = searchViewModel.uiState.value.searchText
+                            searchViewModel.updateSearchText(currentText + key)
                         }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(0.50f)
+                        .weight(0.48f)
                 )
             }
         }

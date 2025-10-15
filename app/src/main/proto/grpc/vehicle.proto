@@ -37,11 +37,9 @@ message Response {
 
 // gRPC service definition
 service VehicleSearchService {
-  // UPDATED: Server streaming to return pure array [{}]
-  rpc SearchVehicle(VehicleSearchRequest) returns (stream VehicleSearchResponse);
+  // FAST: Unary call for simple searches
+  rpc SearchVehicleFast(VehicleSearchRequest) returns (VehicleList);
   
-  // Keep other streaming methods unchanged
+  // Keep streaming for real-time use cases
   rpc SearchVehicleStream(VehicleSearchRequest) returns (stream VehicleSearchResponse);
-  rpc SearchVehicleBatch(stream VehicleSearchRequest) returns (Response);
-  rpc SearchVehicleBidirectional(stream VehicleSearchRequest) returns (stream VehicleSearchResponse);
 }
