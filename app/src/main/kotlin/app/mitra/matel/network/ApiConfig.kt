@@ -6,7 +6,7 @@ package app.mitra.matel.network
  */
 object ApiConfig {
     // Toggle this to switch between environments
-    private const val isProduction = true
+    private const val isProduction = false
     
     // API Base URLs
     // For Android Emulator - 10.0.2.2 maps to host machine's localhost
@@ -48,6 +48,8 @@ object ApiConfig {
         const val SEARCH_VEHICLE = "/vehicle/search"
         const val MY_VEHICLES = "/vehicle/my-vehicles"
         const val ADD_VEHICLE = "/vehicle/add"
+        const val DETAIL_VEHICLE = "/private/vehicle/detail/:id"
+        const val UPDATE_VEHICLE = "/private/vehicle/update"
         const val SEARCH_HISTORY = "/history/search"
         const val PAYMENT_PLANS = "/payment/plans"
         const val PAYMENT_HISTORY = "/payment/history"

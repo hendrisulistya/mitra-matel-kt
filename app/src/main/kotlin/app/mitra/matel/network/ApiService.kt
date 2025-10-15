@@ -6,6 +6,23 @@ import app.mitra.matel.utils.DeviceUtils
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class VehicleDetail(
+    val id: String,
+    val nomor_kontrak: String,
+    val nama_konsumen: String,
+    val past_due: String,
+    val nomor_polisi: String,
+    val nomor_rangka: String,
+    val nomor_mesin: String,
+    val tipe_kendaraan: String,
+    val finance_name: String,
+    val cabang: String,
+    val tahun_kendaraan: String,
+    val warna_kendaraan: String
+)
 
 /**
  * API Service for making HTTP requests
@@ -132,6 +149,24 @@ class ApiService(
                 Result.success(apiResponse)
             } else {
                 Result.failure(Exception("Search failed: ${response.status.description}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Vehicle Detail
+     */
+    suspend fun getVehicleDetail(vehicleId: String): Result<VehicleDetail> {
+        return try {
+            val response = client.get(ApiConfig.Endpoints.DETAIL_VEHICLE.replace(":id", vehicleId))
+            
+            if (response.status.isSuccess()) {
+                val vehicleDetail: VehicleDetail = response.body()
+                Result.success(vehicleDetail)
+            } else {
+                Result.failure(Exception("Failed to get vehicle detail: ${response.status.description}"))
             }
         } catch (e: Exception) {
             Result.failure(e)

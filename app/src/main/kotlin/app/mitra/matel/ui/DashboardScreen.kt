@@ -26,7 +26,8 @@ import app.mitra.matel.network.GrpcService
 @Composable
 fun DashboardScreen(
     onLogout: () -> Unit,
-    onNavigateToMicSearch: () -> Unit = {}
+    onNavigateToMicSearch: () -> Unit = {},
+    onNavigateToVehicleDetail: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     val authViewModel = remember { AuthViewModel(context) }
@@ -100,6 +101,7 @@ fun DashboardScreen(
                 SearchResultList(
                     results = searchUiState.results,
                     error = searchUiState.error,
+                    onVehicleClick = onNavigateToVehicleDetail,
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(0.39f)

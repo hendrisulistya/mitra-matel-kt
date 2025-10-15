@@ -30,6 +30,7 @@ import app.mitra.matel.ui.SignUpScreen
 import app.mitra.matel.ui.WelcomeScreen
 import app.mitra.matel.ui.DashboardScreen
 import app.mitra.matel.ui.screens.MicSearchContent
+import app.mitra.matel.ui.screens.VehicleDetailContent
 import app.mitra.matel.utils.SessionManager
 
 @OptIn(ExperimentalAnimationApi::class)
@@ -150,6 +151,9 @@ fun App() {
                     },
                     onNavigateToMicSearch = {
                         navController.navigate("mic_search")
+                    },
+                    onNavigateToVehicleDetail = { vehicleId ->
+                        navController.navigate("vehicle_detail/$vehicleId")
                     }
                 )
             }
@@ -170,6 +174,28 @@ fun App() {
                 }
             ) {
                 MicSearchContent(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(
+                route = "vehicle_detail/{vehicleId}",
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(300)
+                    ) + fadeIn(animationSpec = tween(300))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(250)
+                    ) + fadeOut(animationSpec = tween(250))
+                }
+            ) { backStackEntry ->
+                val vehicleId = backStackEntry.arguments?.getString("vehicleId") ?: ""
+                VehicleDetailContent(
+                    vehicleId = vehicleId,
                     onBack = { navController.popBackStack() }
                 )
             }

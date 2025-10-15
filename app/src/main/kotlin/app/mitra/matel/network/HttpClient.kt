@@ -45,11 +45,11 @@ object HttpClientFactory {
                 level = LogLevel.ALL
             }
             
-            // Timeout Configuration
+            // Timeout Configuration - Optimized for faster response
             install(HttpTimeout) {
-                requestTimeoutMillis = 30000
-                connectTimeoutMillis = 30000
-                socketTimeoutMillis = 30000
+                requestTimeoutMillis = 15000  // Reduced from 30s to 15s
+                connectTimeoutMillis = 10000  // Reduced from 30s to 10s
+                socketTimeoutMillis = 15000   // Reduced from 30s to 15s
             }
             
             // Default Request Configuration
