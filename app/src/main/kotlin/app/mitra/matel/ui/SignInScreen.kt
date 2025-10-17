@@ -90,6 +90,24 @@ fun SignInScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Error message
+        errorMessage?.let {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                )
+            ) {
+                Text(
+                    text = it,
+                    modifier = Modifier.padding(12.dp),
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+
         // Email field
         OutlinedTextField(
             value = email,
@@ -123,23 +141,6 @@ fun SignInScreen(
         )
 
         Spacer(modifier = Modifier.height(8.dp))
-
-        // Error message
-        errorMessage?.let {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer
-                )
-            ) {
-                Text(
-                    text = it,
-                    modifier = Modifier.padding(12.dp),
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-        }
 
         // Sign In Button
         Button(

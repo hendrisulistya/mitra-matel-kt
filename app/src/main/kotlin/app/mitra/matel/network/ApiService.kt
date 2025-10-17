@@ -9,6 +9,9 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 @Serializable
 data class VehicleDetail(
@@ -70,7 +73,20 @@ class ApiService(
                 val conflict: DeviceConflictResponse = response.body()
                 Result.failure(DeviceConflictException(conflict))
             } else {
-                Result.failure(Exception("Login failed: ${response.status.description}"))
+                val errorText = try {
+                    val responseText = response.bodyAsText()
+                    // Try to parse JSON and extract error message
+                    try {
+                        val jsonObject = Json.parseToJsonElement(responseText) as JsonObject
+                        jsonObject["error"]?.jsonPrimitive?.content ?: responseText
+                    } catch (jsonException: Exception) {
+                        // If JSON parsing fails, return the raw response
+                        responseText
+                    }
+                } catch (e: Exception) {
+                    response.status.description
+                }
+                Result.failure(Exception(errorText))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -90,7 +106,20 @@ class ApiService(
                 HttpClientFactory.setAuthToken(loginResponse.token)
                 Result.success(loginResponse)
             } else {
-                Result.failure(Exception("Force login failed: ${response.status.description}"))
+                val errorText = try {
+                    val responseText = response.bodyAsText()
+                    // Try to parse JSON and extract error message
+                    try {
+                        val jsonObject = Json.parseToJsonElement(responseText) as JsonObject
+                        jsonObject["error"]?.jsonPrimitive?.content ?: responseText
+                    } catch (jsonException: Exception) {
+                        // If JSON parsing fails, return the raw response
+                        responseText
+                    }
+                } catch (e: Exception) {
+                    response.status.description
+                }
+                Result.failure(Exception(errorText))
             }
         } catch (e: Exception) {
             Result.failure(e)
