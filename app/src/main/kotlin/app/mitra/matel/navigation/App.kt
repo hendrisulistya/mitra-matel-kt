@@ -3,11 +3,13 @@ package app.mitra.matel.navigation
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -32,6 +34,9 @@ import app.mitra.matel.ui.DashboardScreen
 import app.mitra.matel.ui.screens.MicSearchContent
 import app.mitra.matel.ui.screens.VehicleDetailContent
 import app.mitra.matel.utils.SessionManager
+import app.mitra.matel.viewmodel.AuthViewModel
+import app.mitra.matel.viewmodel.AuthState
+import app.mitra.matel.network.NetworkDebugHelper
 
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
@@ -40,15 +45,70 @@ fun App() {
     MaterialTheme {
         val context = LocalContext.current
         val sessionManager = remember { SessionManager(context) }
+        val authViewModel = remember { AuthViewModel(context) }
         val navController = rememberAnimatedNavController()
-
-        // Determine start destination based on login status
-        val startDestination = if (sessionManager.isLoggedIn()) "dashboard" else "welcome"
-
-        AnimatedNavHost(
-            navController = navController,
-            startDestination = startDestination
-        ) {
+        
+        var isInitializing by remember { mutableStateOf(true) }
+        var startDestination by remember { mutableStateOf("welcome") }
+        
+        // Auto-login logic on app start
+        LaunchedEffect(Unit) {
+            if (sessionManager.isLoggedIn()) {
+                startDestination = "dashboard"
+                isInitializing = false
+            } else {
+                // Check network connectivity before attempting auto-login
+                if (NetworkDebugHelper.isNetworkAvailable(context)) {
+                    // Check for saved credentials and attempt auto-login
+                    val (savedEmail, savedPassword) = authViewModel.getSavedCredentials()
+                    if (!savedEmail.isNullOrBlank() && !savedPassword.isNullOrBlank()) {
+                        // Attempt auto-login with saved credentials
+                        authViewModel.login(savedEmail, savedPassword, rememberCredentials = true)
+                    } else {
+                        startDestination = "welcome"
+                        isInitializing = false
+                    }
+                } else {
+                    // No network - skip auto-login and go to welcome
+                    startDestination = "welcome"
+                    isInitializing = false
+                }
+            }
+        }
+        
+        // Observe auth state changes for auto-login
+        LaunchedEffect(authViewModel.loginState) {
+            authViewModel.loginState.collect { state ->
+                when (state) {
+                    is AuthState.Success -> {
+                        startDestination = "dashboard"
+                        isInitializing = false
+                    }
+                    is AuthState.Error, is AuthState.Conflict -> {
+                        startDestination = "welcome"
+                        isInitializing = false
+                    }
+                    is AuthState.Loading -> {
+                        // Keep showing loading screen during auto-login
+                    }
+                    else -> { /* Keep waiting */ }
+                }
+            }
+        }
+        
+        if (isInitializing) {
+            // Show splash/loading screen while checking auto-login
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else {
+            AnimatedNavHost(
+                navController = navController,
+                startDestination = startDestination
+            ) {
             composable(
                 route = "welcome",
                 enterTransition = {
@@ -143,6 +203,7 @@ fun App() {
                     onLogout = {
                         // Clear session on logout
                         sessionManager.clearSession()
+                        authViewModel.resetState()
 
                         // Navigate to welcome and clear back stack
                         navController.navigate("welcome") {
@@ -198,6 +259,7 @@ fun App() {
                     vehicleId = vehicleId,
                     onBack = { navController.popBackStack() }
                 )
+            }
             }
         }
     }
