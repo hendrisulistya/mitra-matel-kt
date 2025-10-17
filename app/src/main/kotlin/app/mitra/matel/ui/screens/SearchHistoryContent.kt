@@ -6,30 +6,33 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-
-data class SearchHistoryItem(
-    val query: String,
-    val date: String,
-    val results: Int
-)
+import app.mitra.matel.utils.SessionManager
+import app.mitra.matel.utils.VehicleHistoryItem
+import java.text.SimpleDateFormat
+import java.util.*
 
 @Composable
-fun SearchHistoryContent() {
-    val searchHistory = listOf(
-        SearchHistoryItem("B 1234 ABC", "14 Okt 2025, 10:30", 1),
-        SearchHistoryItem("D 5678 XYZ", "13 Okt 2025, 15:45", 1),
-        SearchHistoryItem("E 9012 DEF", "12 Okt 2025, 09:20", 1),
-        SearchHistoryItem("F 3456 GHI", "11 Okt 2025, 14:10", 0),
-        SearchHistoryItem("A 7890 JKL", "10 Okt 2025, 11:55", 1)
-    )
-
+fun SearchHistoryContent(
+    onVehicleClick: (String) -> Unit = {} // Callback to navigate to vehicle detail
+) {
+    val context = LocalContext.current
+    val sessionManager = remember { SessionManager(context) }
+    var vehicleHistory by remember { mutableStateOf<List<VehicleHistoryItem>>(emptyList()) }
+    
+    // Load history when composable is first created
+    LaunchedEffect(Unit) {
+        vehicleHistory = sessionManager.getVehicleHistory()
+    }
+    
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -39,22 +42,81 @@ fun SearchHistoryContent() {
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text("Riwayat Pencarian", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.List,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        "Riwayat Akses Kendaraan", 
+                        style = MaterialTheme.typography.titleLarge, 
+                        fontWeight = FontWeight.Bold
+                    )
+                }
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Daftar pencarian kendaraan yang telah dilakukan", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    "Daftar kendaraan yang telah diakses", 
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
             }
         }
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
-            LazyColumn(
-                modifier = Modifier.padding(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+        if (vehicleHistory.isEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                items(searchHistory) { item ->
-                    SearchHistoryItemCard(item)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(
+                        Icons.Default.List,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                    )
+                    Text(
+                        "Belum Ada Riwayat",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                    Text(
+                        "Riwayat akses kendaraan akan muncul di sini setelah Anda melihat detail kendaraan",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                }
+            }
+        } else {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                LazyColumn(
+                    modifier = Modifier.padding(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(vehicleHistory) { item ->
+                        VehicleHistoryItemCard(
+                            item = item,
+                            onVehicleClick = onVehicleClick,
+                            onDelete = {
+                                // Remove item from history
+                                sessionManager.removeVehicleFromHistory(item.vehicleId)
+                                vehicleHistory = sessionManager.getVehicleHistory()
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -62,12 +124,22 @@ fun SearchHistoryContent() {
 }
 
 @Composable
-fun SearchHistoryItemCard(item: SearchHistoryItem) {
+fun VehicleHistoryItemCard(
+    item: VehicleHistoryItem,
+    onVehicleClick: (String) -> Unit,
+    onDelete: () -> Unit
+) {
+    val dateFormat = remember { SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("id", "ID")) }
+    val formattedDate = remember(item.accessTime) { 
+        dateFormat.format(Date(item.accessTime)) 
+    }
+    
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+        ),
+        onClick = { onVehicleClick(item.vehicleId) }
     ) {
         Row(
             modifier = Modifier
@@ -88,30 +160,29 @@ fun SearchHistoryItemCard(item: SearchHistoryItem) {
                 )
                 Column {
                     Text(
-                        text = item.query,
+                        text = item.nomorPolisi,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = item.date,
+                        text = "Diakses: $formattedDate",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Text(
-                        text = "${item.results} hasil ditemukan",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (item.results > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-                    )
                 }
             }
-            IconButton(onClick = { /* Delete */ }) {
-                Icon(Icons.Default.Delete, contentDescription = "Hapus")
+            IconButton(onClick = onDelete) {
+                Icon(
+                    Icons.Default.Delete, 
+                    contentDescription = "Hapus dari riwayat",
+                    tint = MaterialTheme.colorScheme.error
+                )
             }
         }
     }
 }
 
-@Preview
+@Preview(showBackground = true)
 @Composable
 fun SearchHistoryContentPreview() {
     MaterialTheme {

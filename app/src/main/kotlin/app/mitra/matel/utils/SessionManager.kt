@@ -8,6 +8,10 @@ import androidx.security.crypto.MasterKey
 import app.mitra.matel.network.models.ProfileResponse
 import app.mitra.matel.network.models.ProfileDevice
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 
 /**
  * SessionManager - Handles secure storage of authentication data
@@ -43,6 +47,9 @@ class SessionManager(private val context: Context) {
         
         // Announcement dismissal key
         private const val KEY_ANNOUNCEMENT_DISMISSED = "announcement_dismissed"
+        
+        // Vehicle history keys
+        private const val KEY_VEHICLE_HISTORY = "vehicle_history"
     }
     
     /**
@@ -217,6 +224,72 @@ class SessionManager(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to check login status: ${e.message}", e)
             false
+        }
+    }
+    
+    /**
+     * Add vehicle to access history
+     */
+    fun addVehicleToHistory(vehicleId: String, nomorPolisi: String) {
+        try {
+            val currentHistory = getVehicleHistory().toMutableList()
+            val newItem = VehicleHistoryItem(
+                vehicleId = vehicleId,
+                nomorPolisi = nomorPolisi,
+                accessTime = System.currentTimeMillis()
+            )
+            
+            // Remove existing entry if it exists (to update timestamp)
+            currentHistory.removeAll { it.vehicleId == vehicleId }
+            
+            // Add new item at the beginning
+            currentHistory.add(0, newItem)
+            
+            // Keep only last 50 items
+            if (currentHistory.size > 50) {
+                currentHistory.subList(50, currentHistory.size).clear()
+            }
+            
+            // Save updated history
+            val json = Json.encodeToString(currentHistory)
+            sharedPreferences.edit()
+                .putString(KEY_VEHICLE_HISTORY, json)
+                .apply()
+                
+            Log.d(TAG, "Vehicle added to history: $nomorPolisi")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to add vehicle to history: ${e.message}", e)
+        }
+    }
+    
+    /**
+     * Get vehicle access history
+     */
+    fun getVehicleHistory(): List<VehicleHistoryItem> {
+        return try {
+            val json = sharedPreferences.getString(KEY_VEHICLE_HISTORY, null)
+            if (json != null) {
+                Json.decodeFromString<List<VehicleHistoryItem>>(json)
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get vehicle history: ${e.message}", e)
+            emptyList()
+        }
+    }
+    
+    /**
+     * Clear vehicle history
+     */
+    fun clearVehicleHistory() {
+        try {
+            sharedPreferences.edit()
+                .remove(KEY_VEHICLE_HISTORY)
+                .apply()
+            Log.d(TAG, "Vehicle history cleared")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to clear vehicle history: ${e.message}", e)
         }
     }
     
@@ -420,4 +493,31 @@ class SessionManager(private val context: Context) {
             false
         }
     }
+    
+    /**
+     * Remove a specific vehicle from history
+     */
+    fun removeVehicleFromHistory(vehicleId: String) {
+        try {
+            val currentHistory = getVehicleHistory().toMutableList()
+            val updatedHistory = currentHistory.filter { it.vehicleId != vehicleId }
+            
+            val historyJson = Json.encodeToString(updatedHistory)
+            sharedPreferences.edit().putString(KEY_VEHICLE_HISTORY, historyJson).apply()
+            
+            Log.d(TAG, "Vehicle removed from history: $vehicleId")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error removing vehicle from history", e)
+        }
+    }
 }
+
+/**
+ * Data class for vehicle history items
+ */
+@Serializable
+data class VehicleHistoryItem(
+    val vehicleId: String,
+    val nomorPolisi: String,
+    val accessTime: Long // Unix timestamp
+)

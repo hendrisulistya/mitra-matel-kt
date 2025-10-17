@@ -229,7 +229,9 @@ fun DashboardScreen(
                                 }
                             )
                         }
-                        "Riwayat Pencarian" -> SearchHistoryContent()
+                        "Riwayat Pencarian" -> SearchHistoryContent(
+                            onVehicleClick = onNavigateToVehicleDetail
+                        )
                         "Data Kendaraan saya" -> MyVehicleDataContent()
                         "Input Data Kendaraan" -> InputVehicleContent()
                         "Aktivasi dan Pembayaran" -> PaymentAndActivationContent()

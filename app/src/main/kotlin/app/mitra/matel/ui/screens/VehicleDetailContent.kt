@@ -294,6 +294,10 @@ private fun VehicleDetailDisplay(
     // Send location when vehicle detail is displayed (policy requirement)
     LaunchedEffect(vehicleDetail) {
         sendUserLocation(fusedLocationClient, apiService, context)
+        
+        // Save vehicle to history when successfully displayed
+        val sessionManager = SessionManager(context)
+        sessionManager.addVehicleToHistory(vehicleDetail.id, vehicleDetail.nomor_polisi)
     }
     Column(
         modifier = Modifier
