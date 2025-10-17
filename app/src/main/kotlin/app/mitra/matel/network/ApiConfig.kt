@@ -45,6 +45,7 @@ object ApiConfig {
         const val REGISTER = "/public/auth/user/register"
         const val LOGOUT = "/public/auth/user/logout"
         const val PROFILE = "/private/user/app/profile"
+        const val PROFILE_AVATAR= "/private/user/app/profile/avatar"
         const val SEARCH_VEHICLE = "/vehicle/search"
         const val MY_VEHICLES = "/vehicle/my-vehicles"
         const val ADD_VEHICLE = "/vehicle/add"

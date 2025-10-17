@@ -1,7 +1,16 @@
 package app.mitra.matel.ui.screens
 
+import android.graphics.BitmapFactory
+import android.net.Uri
+import android.util.Base64
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -9,7 +18,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -18,6 +30,7 @@ import app.mitra.matel.network.models.ProfileDevice
 import app.mitra.matel.network.models.ProfileResponse
 import app.mitra.matel.utils.SessionManager
 import kotlinx.serialization.json.JsonObject
+import java.io.InputStream
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -26,7 +39,8 @@ fun ProfileContent(
     profile: ProfileResponse? = null,
     isLoading: Boolean = false,
     onEditProfile: () -> Unit = {},
-    onRefresh: () -> Unit = {}
+    onRefresh: () -> Unit = {},
+    onAvatarUpload: (String) -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -45,11 +59,10 @@ fun ProfileContent(
                     .padding(20.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Default.AccountCircle,
-                    contentDescription = "Profile Avatar",
+                AvatarImage(
+                    avatarData = profile?.assets?.get("avatar")?.toString()?.removePrefix("\"")?.removeSuffix("\""),
                     modifier = Modifier.size(80.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    onAvatarClick = { onAvatarUpload(it) }
                 )
             }
         }
@@ -217,6 +230,102 @@ private data class ProfileInfoItem(
     val label: String,
     val value: String
 )
+
+@Composable
+private fun AvatarImage(
+    avatarData: String?,
+    modifier: Modifier = Modifier,
+    onAvatarClick: (String) -> Unit = {}
+) {
+    val context = LocalContext.current
+    
+    // File picker launcher
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            try {
+                val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
+                inputStream?.let { stream ->
+                    val bytes = stream.readBytes()
+                    
+                    // Determine MIME type based on the actual image content
+                    val mimeType = context.contentResolver.getType(uri) ?: "image/png"
+                    
+                    // Create data URL with correct MIME type
+                    val base64String = "data:$mimeType;base64," + Base64.encodeToString(bytes, Base64.DEFAULT)
+                    onAvatarClick(base64String)
+                    stream.close()
+                }
+            } catch (e: Exception) {
+                // Handle error - could show a toast or snackbar
+            }
+        }
+    }
+    
+    val bitmap = remember(avatarData) {
+        if (avatarData != null && avatarData.startsWith("data:image/")) {
+            try {
+                val base64Data = avatarData.substringAfter("base64,")
+                val imageBytes = Base64.decode(base64Data, Base64.DEFAULT)
+                BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+            } catch (e: Exception) {
+                null
+            }
+        } else {
+            null
+        }
+    }
+    
+    Box(
+        modifier = modifier.clickable { 
+            filePickerLauncher.launch("image/*")
+        },
+        contentAlignment = Alignment.Center
+    ) {
+        if (bitmap != null) {
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = "Profile Avatar",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            DefaultAvatarIcon(Modifier.fillMaxSize())
+        }
+        
+        // Camera icon overlay
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .background(
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
+                    CircleShape
+                )
+                .align(Alignment.BottomEnd),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Change Avatar",
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun DefaultAvatarIcon(modifier: Modifier = Modifier) {
+    Icon(
+        imageVector = Icons.Default.AccountCircle,
+        contentDescription = "Profile Avatar",
+        modifier = modifier,
+        tint = MaterialTheme.colorScheme.primary
+    )
+}
 
 private fun formatDateTime(dateTimeString: String): String {
     return try {

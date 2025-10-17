@@ -41,11 +41,36 @@ fun DashboardScreen(
     val searchUiState by searchViewModel.uiState.collectAsState()
     val profileState by profileViewModel.profileState.collectAsState()
     val profile by profileViewModel.profile.collectAsState()
+    val avatarUploadState by profileViewModel.avatarUploadState.collectAsState()
+    
+    // Snackbar state
+    val snackbarHostState = remember { SnackbarHostState() }
     
     // Fetch profile data when dashboard is first loaded (only if not cached)
     LaunchedEffect(Unit) {
         if (profile == null) {
             profileViewModel.fetchProfile()
+        }
+    }
+    
+    // Handle avatar upload state with notifications
+    LaunchedEffect(avatarUploadState) {
+        when (val currentState = avatarUploadState) {
+            is app.mitra.matel.viewmodel.AvatarUploadState.Success -> {
+                snackbarHostState.showSnackbar(
+                    message = "Avatar berhasil diupload!",
+                    duration = SnackbarDuration.Short
+                )
+                profileViewModel.resetAvatarUploadState()
+            }
+            is app.mitra.matel.viewmodel.AvatarUploadState.Error -> {
+                snackbarHostState.showSnackbar(
+                    message = "Gagal upload avatar: ${currentState.message}",
+                    duration = SnackbarDuration.Long
+                )
+                profileViewModel.resetAvatarUploadState()
+            }
+            else -> {}
         }
     }
     var selectedMenuItem by remember { mutableStateOf<String?>(null) }
@@ -54,11 +79,15 @@ fun DashboardScreen(
     var showAnnouncement by remember { mutableStateOf(true) }
     var keyboardLayout by remember { mutableStateOf(KeyboardLayout.QWERTY) }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.systemBars)
-    ) {
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        modifier = Modifier.windowInsetsPadding(WindowInsets.systemBars)
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
         // Main Dashboard Content (always visible)
         Column(
             modifier = Modifier
@@ -192,7 +221,10 @@ fun DashboardScreen(
                             ProfileContent(
                                 profile = profile,
                                 isLoading = profileState is app.mitra.matel.viewmodel.ProfileState.Loading,
-                                onRefresh = { profileViewModel.fetchProfile() }
+                                onRefresh = { profileViewModel.fetchProfile() },
+                                onAvatarUpload = { avatarBase64 ->
+                                    profileViewModel.uploadAvatar(avatarBase64)
+                                }
                             )
                         }
                         "Riwayat Pencarian" -> SearchHistoryContent()
@@ -264,6 +296,7 @@ fun DashboardScreen(
             AnnouncementDialog(
                 onDismiss = { showAnnouncement = false }
             )
+        }
         }
     }
 }

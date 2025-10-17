@@ -6,6 +6,7 @@ import app.mitra.matel.utils.DeviceUtils
 import app.mitra.matel.utils.SessionManager
 import io.ktor.client.call.*
 import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.serialization.Serializable
 
@@ -23,6 +24,11 @@ data class VehicleDetail(
     val cabang: String,
     val tahun_kendaraan: String,
     val warna_kendaraan: String
+)
+
+@Serializable
+data class AvatarUploadRequest(
+    val avatar: String
 )
 
 /**
@@ -150,6 +156,58 @@ class ApiService(
                 Result.success(profileResponse)
             } else {
                 Result.failure(Exception("Failed to get profile: ${response.status.description}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * Upload Avatar
+     */
+    suspend fun uploadAvatar(avatarBase64: String): Result<ApiResponse<Unit>> {
+        return try {
+            val token = sessionManager.getToken()
+            if (token == null) {
+                return Result.failure(Exception("No authentication token available"))
+            }
+            
+            // Ensure HttpClient has the latest token
+            HttpClientFactory.setAuthToken(token)
+            
+            val requestBody = AvatarUploadRequest(avatar = avatarBase64)
+            val response = client.post(ApiConfig.Endpoints.PROFILE_AVATAR) {
+                setBody(requestBody)
+            }
+            
+            if (response.status.isSuccess()) {
+                try {
+                    val apiResponse: ApiResponse<Unit> = response.body()
+                    Result.success(apiResponse)
+                } catch (serializationException: Exception) {
+                    // Server might return a different format, try to handle it gracefully
+                    val responseText = response.bodyAsText()
+                    
+                    // If the response is successful but doesn't match our expected format,
+                    // create a success response manually
+                    if (response.status.value in 200..299) {
+                        val successResponse = ApiResponse<Unit>(
+                            success = true,
+                            message = "Avatar uploaded successfully",
+                            data = Unit
+                        )
+                        Result.success(successResponse)
+                    } else {
+                        Result.failure(Exception("Unexpected response format: $responseText"))
+                    }
+                }
+            } else {
+                val errorText = try {
+                    response.bodyAsText()
+                } catch (e: Exception) {
+                    response.status.description
+                }
+                Result.failure(Exception("Failed to upload avatar: $errorText"))
             }
         } catch (e: Exception) {
             Result.failure(e)

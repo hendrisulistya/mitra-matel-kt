@@ -18,6 +18,13 @@ sealed class ProfileState {
     data class Error(val message: String) : ProfileState()
 }
 
+sealed class AvatarUploadState {
+    object Idle : AvatarUploadState()
+    object Loading : AvatarUploadState()
+    object Success : AvatarUploadState()
+    data class Error(val message: String) : AvatarUploadState()
+}
+
 class ProfileViewModel(private val context: Context) : ViewModel() {
 
     private val apiService = ApiService(context = context)
@@ -28,6 +35,9 @@ class ProfileViewModel(private val context: Context) : ViewModel() {
 
     private val _profile = MutableStateFlow<ProfileResponse?>(null)
     val profile: StateFlow<ProfileResponse?> = _profile.asStateFlow()
+
+    private val _avatarUploadState = MutableStateFlow<AvatarUploadState>(AvatarUploadState.Idle)
+    val avatarUploadState: StateFlow<AvatarUploadState> = _avatarUploadState.asStateFlow()
 
     init {
         // Load profile from SessionManager on initialization
@@ -93,5 +103,37 @@ class ProfileViewModel(private val context: Context) : ViewModel() {
      */
     fun resetState() {
         _profileState.value = ProfileState.Idle
+    }
+
+    /**
+     * Upload avatar image
+     */
+    fun uploadAvatar(avatarBase64: String) {
+        if (_avatarUploadState.value is AvatarUploadState.Loading) return
+        
+        viewModelScope.launch {
+            _avatarUploadState.value = AvatarUploadState.Loading
+
+            val result = apiService.uploadAvatar(avatarBase64)
+
+            result.onSuccess {
+                _avatarUploadState.value = AvatarUploadState.Success
+                // Clear profile cache and fetch fresh data to get updated avatar
+                sessionManager.clearProfile()
+                _profile.value = null
+                fetchProfile()
+            }.onFailure { exception ->
+                _avatarUploadState.value = AvatarUploadState.Error(
+                    exception.message ?: "Failed to upload avatar"
+                )
+            }
+        }
+    }
+
+    /**
+     * Reset avatar upload state
+     */
+    fun resetAvatarUploadState() {
+        _avatarUploadState.value = AvatarUploadState.Idle
     }
 }

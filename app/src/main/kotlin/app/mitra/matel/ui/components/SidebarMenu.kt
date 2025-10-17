@@ -1,5 +1,8 @@
 package app.mitra.matel.ui.components
 
+import android.graphics.BitmapFactory
+import android.util.Base64
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -18,7 +21,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -89,20 +94,10 @@ fun SidebarMenu(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     // Minimal Avatar
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Default.Person,
-                            contentDescription = "Avatar",
-                            modifier = Modifier.size(20.dp),
-                            tint = MaterialTheme.colorScheme.onPrimary
-                        )
-                    }
+                    SidebarAvatarImage(
+                        avatarData = profile?.assets?.get("avatar")?.toString()?.removePrefix("\"")?.removeSuffix("\""),
+                        modifier = Modifier.size(40.dp)
+                    )
 
                     // Compact Info
                     Column(
@@ -253,6 +248,54 @@ data class MenuItem(
 data class MenuSection(
     val items: List<MenuItem>
 )
+
+@Composable
+private fun SidebarAvatarImage(
+    avatarData: String?,
+    modifier: Modifier = Modifier
+) {
+    val bitmap = remember(avatarData) {
+        if (avatarData != null && avatarData.startsWith("data:image/")) {
+            try {
+                val base64Data = avatarData.substringAfter("base64,")
+                val imageBytes = Base64.decode(base64Data, Base64.DEFAULT)
+                BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+            } catch (e: Exception) {
+                null
+            }
+        } else {
+            null
+        }
+    }
+    
+    if (bitmap != null) {
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = "Profile Avatar",
+            modifier = modifier.clip(CircleShape),
+            contentScale = ContentScale.Crop
+        )
+    } else {
+        DefaultSidebarAvatar(modifier)
+    }
+}
+
+@Composable
+private fun DefaultSidebarAvatar(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.primary),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            Icons.Default.Person,
+            contentDescription = "Avatar",
+            modifier = Modifier.size(20.dp),
+            tint = MaterialTheme.colorScheme.onPrimary
+        )
+    }
+}
 
 @Preview(showBackground = true)
 @Composable
