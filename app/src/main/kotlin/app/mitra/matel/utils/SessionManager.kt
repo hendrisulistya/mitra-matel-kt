@@ -40,6 +40,9 @@ class SessionManager(private val context: Context) {
         private const val KEY_DEVICE_UUID = "device_uuid"
         private const val KEY_DEVICE_MODEL = "device_model"
         private const val KEY_DEVICE_LAST_LOGIN = "device_last_login"
+        
+        // Announcement dismissal key
+        private const val KEY_ANNOUNCEMENT_DISMISSED = "announcement_dismissed"
     }
     
     /**
@@ -389,6 +392,32 @@ class SessionManager(private val context: Context) {
             Log.d(TAG, "All data cleared successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to clear all data: ${e.message}", e)
+        }
+    }
+    
+    /**
+     * Set announcement dismissal state
+     */
+    fun setAnnouncementDismissed(dismissed: Boolean) {
+        try {
+            sharedPreferences.edit()
+                .putBoolean(KEY_ANNOUNCEMENT_DISMISSED, dismissed)
+                .apply()
+            Log.d(TAG, "Announcement dismissal state saved: $dismissed")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save announcement dismissal state: ${e.message}", e)
+        }
+    }
+    
+    /**
+     * Check if announcement has been dismissed
+     */
+    fun isAnnouncementDismissed(): Boolean {
+        return try {
+            sharedPreferences.getBoolean(KEY_ANNOUNCEMENT_DISMISSED, false)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get announcement dismissal state: ${e.message}", e)
+            false
         }
     }
 }

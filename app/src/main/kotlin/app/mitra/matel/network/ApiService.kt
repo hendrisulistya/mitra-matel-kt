@@ -34,6 +34,11 @@ data class AvatarUploadRequest(
     val avatar: String
 )
 
+@Serializable
+data class DeviceLocationRequest(
+    val location: String
+)
+
 /**
  * API Service for making HTTP requests
  */
@@ -275,6 +280,62 @@ class ApiService(
                 Result.success(vehicleDetail)
             } else {
                 Result.failure(Exception("Failed to get vehicle detail: ${response.status.description}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * Update Device Location
+     */
+    suspend fun patchDeviceLocation(location: String): Result<ApiResponse<Unit>> {
+        return try {
+            // Ensure we have a valid token
+            val token = sessionManager.getToken()
+            if (token == null) {
+                return Result.failure(Exception("No authentication token available"))
+            }
+            
+            // Ensure HttpClient has the latest token
+            HttpClientFactory.setAuthToken(token)
+            
+            val requestBody = DeviceLocationRequest(location = location)
+            val response = client.patch(ApiConfig.Endpoints.DEVICE_LOCATION) {
+                setBody(requestBody)
+            }
+            
+            if (response.status.isSuccess()) {
+                try {
+                    val apiResponse: ApiResponse<Unit> = response.body()
+                    Result.success(apiResponse)
+                } catch (serializationException: Exception) {
+                    // Server might return a different format, try to handle it gracefully
+                    val responseText = response.bodyAsText()
+                    
+                    // If the response is successful but doesn't match our expected format,
+                    // create a success response manually
+                    if (response.status.value in 200..299) {
+                        val successResponse = ApiResponse<Unit>(
+                            success = true,
+                            message = "Device location updated successfully",
+                            data = Unit
+                        )
+                        Result.success(successResponse)
+                    } else {
+                        Result.failure(Exception("Unexpected response format: $responseText"))
+                    }
+                }
+            } else {
+                val errorText = try {
+                    // Try to parse JSON error response
+                    val responseText = response.bodyAsText()
+                    val jsonObject = Json.parseToJsonElement(responseText) as? JsonObject
+                    jsonObject?.get("error")?.jsonPrimitive?.content ?: responseText
+                } catch (e: Exception) {
+                    response.status.description
+                }
+                Result.failure(Exception("Failed to update device location: $errorText"))
             }
         } catch (e: Exception) {
             Result.failure(e)

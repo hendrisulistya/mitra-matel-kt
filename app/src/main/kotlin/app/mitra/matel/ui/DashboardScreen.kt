@@ -25,6 +25,7 @@ import app.mitra.matel.viewmodel.SearchViewModel
 import app.mitra.matel.viewmodel.ProfileViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.mitra.matel.network.GrpcService
+import app.mitra.matel.utils.SessionManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,6 +35,7 @@ fun DashboardScreen(
     onNavigateToVehicleDetail: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
+    val sessionManager = remember { SessionManager(context) }
     val authViewModel = remember { AuthViewModel(context) }
     val grpcService = remember { GrpcService(context) }
     val searchViewModel = remember { SearchViewModel(grpcService) }
@@ -76,7 +78,7 @@ fun DashboardScreen(
     var selectedMenuItem by remember { mutableStateOf<String?>(null) }
     var isSidebarVisible by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
-    var showAnnouncement by remember { mutableStateOf(true) }
+    var showAnnouncement by remember { mutableStateOf(!sessionManager.isAnnouncementDismissed()) }
     var keyboardLayout by remember { mutableStateOf(KeyboardLayout.QWERTY) }
 
     Scaffold(
@@ -294,7 +296,10 @@ fun DashboardScreen(
         // Announcement Dialog - only shown when user is logged in (in Dashboard)
         if (showAnnouncement) {
             AnnouncementDialog(
-                onDismiss = { showAnnouncement = false }
+                onDismiss = { 
+                    showAnnouncement = false
+                    sessionManager.setAnnouncementDismissed(true)
+                }
             )
         }
         }

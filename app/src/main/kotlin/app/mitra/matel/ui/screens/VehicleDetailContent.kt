@@ -2,6 +2,8 @@ package app.mitra.matel.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -9,8 +11,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import app.mitra.matel.network.ApiService
 import app.mitra.matel.network.ApiConfig
 import app.mitra.matel.network.VehicleDetail
@@ -18,6 +26,10 @@ import app.mitra.matel.network.models.ApiResponse
 import app.mitra.matel.network.HttpClientFactory
 import app.mitra.matel.utils.SessionManager
 import kotlinx.coroutines.launch
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
+import android.location.Location
+import android.util.Log
 
 @Composable
 fun VehicleDetailContent(
@@ -29,6 +41,28 @@ fun VehicleDetailContent(
     val sessionManager = remember { SessionManager(context) }
     val apiService = remember { ApiService(context = context) }
     
+    // GPS permission state
+    var hasLocationPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    
+    // Permission launcher
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        hasLocationPermission = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true &&
+                               permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+    }
+    
     var vehicleDetail by remember { mutableStateOf<VehicleDetail?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -37,7 +71,13 @@ fun VehicleDetailContent(
     val authToken = remember { sessionManager.getToken() }
     
     // Single LaunchedEffect for both auth setup and data fetching - eliminates redundant calls
-    LaunchedEffect(vehicleId, authToken) {
+    LaunchedEffect(vehicleId, authToken, hasLocationPermission) {
+        // Only proceed if GPS permission is granted
+        if (!hasLocationPermission) {
+            isLoading = false
+            return@LaunchedEffect
+        }
+        
         try {
             isLoading = true
             error = null
@@ -72,6 +112,19 @@ fun VehicleDetailContent(
     ) {
         // Content
         when {
+            !hasLocationPermission -> {
+                LocationPermissionContent(
+                    onRequestPermission = {
+                        permissionLauncher.launch(
+                            arrayOf(
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                            )
+                        )
+                    },
+                    onBack = onBack
+                )
+            }
             isLoading -> {
                 LoadingContent()
             }
@@ -113,6 +166,52 @@ fun VehicleDetailContent(
                 )
             }
         }
+    }
+}
+
+/**
+ * Sends user location to server as per policy requirement
+ * This function is called when vehicle details are displayed
+ */
+private suspend fun sendUserLocation(
+    fusedLocationClient: FusedLocationProviderClient,
+    apiService: ApiService,
+    context: android.content.Context
+) {
+    try {
+        // Check if location permission is granted
+        if (ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return // Permission not granted, skip location sending
+        }
+        
+        // Get last known location
+        fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+            location?.let {
+                val locationString = "${it.latitude},${it.longitude}"
+                
+                // Send location to server using coroutine
+                kotlinx.coroutines.MainScope().launch {
+                    try {
+                        apiService.patchDeviceLocation(locationString)
+                        // Location sent successfully - no UI feedback needed as per policy
+                    } catch (e: Exception) {
+                        // Silent failure - location sending is background operation
+                        // Log error for debugging but don't show to user
+                        Log.w("VehicleDetail", "Failed to send location: ${e.message}")
+                    }
+                }
+            }
+        }.addOnFailureListener { exception: Exception ->
+            // Silent failure - location sending is background operation
+            Log.w("VehicleDetail", "Failed to get location: ${exception.message}")
+        }
+    } catch (e: Exception) {
+        // Silent failure - location sending is background operation
+        Log.w("VehicleDetail", "Location service error: ${e.message}")
     }
 }
 
@@ -188,6 +287,14 @@ private fun VehicleDetailDisplay(
     context: android.content.Context,
     onBack: () -> Unit
 ) {
+    val apiService = remember { ApiService(context = context) }
+    val fusedLocationClient: FusedLocationProviderClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+    val coroutineScope = rememberCoroutineScope()
+    
+    // Send location when vehicle detail is displayed (policy requirement)
+    LaunchedEffect(vehicleDetail) {
+        sendUserLocation(fusedLocationClient, apiService, context)
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -426,6 +533,79 @@ private fun DualColumnDetailRow(
                 color = textColor,
                 modifier = Modifier.weight(1f)
             )
+        }
+    }
+}
+
+@Composable
+private fun LocationPermissionContent(
+    onRequestPermission: () -> Unit,
+    onBack: () -> Unit
+) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                // GPS Icon
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = "GPS Permission",
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                
+                // Title
+                Text(
+                    text = "Izin Lokasi Diperlukan",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center
+                )
+                
+                // Description
+                Text(
+                    text = "Aplikasi memerlukan akses lokasi GPS untuk menampilkan detail kendaraan. Fitur ini diperlukan untuk keamanan dan verifikasi lokasi.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                    textAlign = TextAlign.Center,
+                    lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
+                )
+                
+                // Buttons
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Button(
+                        onClick = onRequestPermission,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Berikan Izin Lokasi")
+                    }
+                    
+                    OutlinedButton(
+                        onClick = onBack,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Kembali")
+                    }
+                }
+            }
         }
     }
 }
