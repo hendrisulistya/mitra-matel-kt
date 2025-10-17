@@ -19,6 +19,7 @@ import app.mitra.matel.ui.screens.*
 import androidx.compose.ui.platform.LocalContext
 import app.mitra.matel.viewmodel.AuthViewModel
 import app.mitra.matel.viewmodel.SearchViewModel
+import app.mitra.matel.viewmodel.ProfileViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.mitra.matel.network.GrpcService
 
@@ -33,8 +34,17 @@ fun DashboardScreen(
     val authViewModel = remember { AuthViewModel(context) }
     val grpcService = remember { GrpcService(context) }
     val searchViewModel = remember { SearchViewModel(grpcService) }
+    val profileViewModel = remember { ProfileViewModel(context) }
     val searchUiState by searchViewModel.uiState.collectAsState()
+    val profileState by profileViewModel.profileState.collectAsState()
+    val profile by profileViewModel.profile.collectAsState()
     
+    // Fetch profile data when dashboard is first loaded (only if not cached)
+    LaunchedEffect(Unit) {
+        if (profile == null) {
+            profileViewModel.fetchProfile()
+        }
+    }
     var selectedMenuItem by remember { mutableStateOf<String?>(null) }
     var isSidebarVisible by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
@@ -174,7 +184,13 @@ fun DashboardScreen(
                         .padding(24.dp)
                 ) {
                     when (screen) {
-                        "Profil Saya" -> ProfileContent()
+                        "Profil Saya" -> {
+                            ProfileContent(
+                                profile = profile,
+                                isLoading = profileState is app.mitra.matel.viewmodel.ProfileState.Loading,
+                                onRefresh = { profileViewModel.fetchProfile() }
+                            )
+                        }
                         "Riwayat Pencarian" -> SearchHistoryContent()
                         "Data Kendaraan saya" -> MyVehicleDataContent()
                         "Input Data Kendaraan" -> InputVehicleContent()
@@ -221,7 +237,8 @@ fun DashboardScreen(
                         isSidebarVisible = false
                     }
                 },
-                onClose = { isSidebarVisible = false }
+                onClose = { isSidebarVisible = false },
+                profile = profile
             )
         }
 

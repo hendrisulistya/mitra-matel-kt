@@ -2,6 +2,7 @@ package app.mitra.matel.network.models
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 
 @Serializable
 data class DeviceInfo(
@@ -45,6 +46,28 @@ data class User(
     val email: String,
     val phoneNumber: String,
     val tier: String = "Basic"
+)
+
+@Serializable
+data class ProfileDevice(
+    val id: String,
+    @SerialName("device_uuid") val uuid: String,
+    val model: String? = null,
+    @SerialName("last_login") val lastLogin: String? = null
+)
+
+@Serializable
+data class ProfileResponse(
+    val id: String,
+    val email: String,
+    @SerialName("full_name") val fullName: String,
+    val telephone: String? = null,
+    val tier: String,
+    val assets: JsonObject = JsonObject(emptyMap()),
+    val device: ProfileDevice? = null,
+    @SerialName("subscription_status") val subscriptionStatus: String,
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("updated_at") val updatedAt: String? = null
 )
 
 @Serializable

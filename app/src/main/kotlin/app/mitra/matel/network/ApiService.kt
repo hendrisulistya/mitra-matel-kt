@@ -3,6 +3,7 @@ package app.mitra.matel.network
 import android.content.Context
 import app.mitra.matel.network.models.*
 import app.mitra.matel.utils.DeviceUtils
+import app.mitra.matel.utils.SessionManager
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
@@ -31,6 +32,18 @@ class ApiService(
     private val context: Context,
     private val client: io.ktor.client.HttpClient = createHttpClient(context)
 ) {
+    
+    private val sessionManager = SessionManager(context)
+    
+    init {
+        // Set auth token from SessionManager if available
+        val token = sessionManager.getToken()
+        if (token != null) {
+            HttpClientFactory.setAuthToken(token)
+        }
+        // Set SessionManager for token refresh
+        HttpClientFactory.setSessionManager(sessionManager)
+    }
 
     /**
      * User Authentication
@@ -120,13 +133,21 @@ class ApiService(
     /**
      * User Profile
      */
-    suspend fun getProfile(): Result<ApiResponse<User>> {
+    suspend fun getProfile(): Result<ProfileResponse> {
         return try {
+            val token = sessionManager.getToken()
+            if (token == null) {
+                return Result.failure(Exception("No authentication token available"))
+            }
+            
+            // Ensure HttpClient has the latest token
+            HttpClientFactory.setAuthToken(token)
+            
             val response = client.get(ApiConfig.Endpoints.PROFILE)
             
             if (response.status.isSuccess()) {
-                val apiResponse: ApiResponse<User> = response.body()
-                Result.success(apiResponse)
+                val profileResponse: ProfileResponse = response.body()
+                Result.success(profileResponse)
             } else {
                 Result.failure(Exception("Failed to get profile: ${response.status.description}"))
             }

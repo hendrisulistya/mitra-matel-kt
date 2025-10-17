@@ -10,20 +10,29 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.mitra.matel.network.models.ProfileResponse
+import app.mitra.matel.utils.SessionManager
 
 @Composable
 fun SidebarMenu(
     selectedItem: String,
     onMenuItemClick: (String) -> Unit,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    profile: ProfileResponse? = null
 ) {
     val menuSections = listOf(
         MenuSection(
@@ -100,7 +109,7 @@ fun SidebarMenu(
                         modifier = Modifier.weight(1f)
                     ) {
                         Text(
-                            text = "John Doe",
+                            text = profile?.fullName ?: "Loading...",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -116,7 +125,7 @@ fun SidebarMenu(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                             Text(
-                                text = "Premium",
+                                text = profile?.tier?.replaceFirstChar { it.uppercase() } ?: "Free",
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.primary

@@ -7,6 +7,7 @@ import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import io.grpc.Metadata
 import io.grpc.stub.MetadataUtils
+
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -32,12 +33,14 @@ class GrpcService(private val context: Context) {
     private val channel: ManagedChannel = run {
         val builder = ManagedChannelBuilder.forAddress(ApiConfig.GRPC_HOST, ApiConfig.GRPC_PORT)
             .keepAliveTime(30, TimeUnit.SECONDS)
-            .keepAliveTimeout(5, TimeUnit.SECONDS)
+            .keepAliveTimeout(10, TimeUnit.SECONDS) // Increased for Cloudflare
             .keepAliveWithoutCalls(true)
-            .maxInboundMessageSize(4 * 1024 * 1024)
-            .idleTimeout(60, TimeUnit.SECONDS)
-            // CRITICAL: Enable connection pooling
-            .maxInboundMetadataSize(8192)
+            .maxInboundMessageSize(4 * 1024 * 1024) // Reduced for Cloudflare compatibility
+            .idleTimeout(120, TimeUnit.SECONDS) // Increased for proxy stability
+            // Cloudflare-friendly metadata size (reduced from 8192)
+            .maxInboundMetadataSize(4096)
+            // Add user agent for better Cloudflare compatibility
+            .userAgent("MitraMatel-Android/1.0")
             
         if (!ApiConfig.IS_PRODUCTION) {
             builder.usePlaintext()

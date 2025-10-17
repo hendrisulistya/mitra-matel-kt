@@ -44,7 +44,7 @@ object ApiConfig {
         const val FORCE_LOGIN = "/public/auth/user/force-login"
         const val REGISTER = "/public/auth/user/register"
         const val LOGOUT = "/public/auth/user/logout"
-        const val PROFILE = "/user/profile"
+        const val PROFILE = "/private/user/app/profile"
         const val SEARCH_VEHICLE = "/vehicle/search"
         const val MY_VEHICLES = "/vehicle/my-vehicles"
         const val ADD_VEHICLE = "/vehicle/add"
