@@ -28,8 +28,8 @@ data class VehicleDetail(
  * API Service for making HTTP requests
  */
 class ApiService(
-    private val client: io.ktor.client.HttpClient = httpClient,
-    private val context: Context
+    private val context: Context,
+    private val client: io.ktor.client.HttpClient = createHttpClient(context)
 ) {
 
     /**

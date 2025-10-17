@@ -39,20 +39,25 @@ class GrpcHealthService(
     private val _connectionStatus = MutableStateFlow(GrpcConnectionStatus())
     val connectionStatus: StateFlow<GrpcConnectionStatus> = _connectionStatus.asStateFlow()
     
-    // Add authentication metadata like in GrpcService
-    private val authMetadata: Metadata = run {
+    // Dynamic auth metadata - fetches fresh token on each call
+    private fun getAuthMetadata(): Metadata {
         val metadata = Metadata()
         sessionManager.getToken()?.let { token ->
             val authKey = Metadata.Key.of("authorization", Metadata.ASCII_STRING_MARSHALLER)
             metadata.put(authKey, "Bearer $token")
         }
-        metadata
+        return metadata
     }
-    
-    // Apply authentication to health service stub
-    private val healthService by lazy {
-        val stub = HealthServiceGrpcKt.HealthServiceCoroutineStub(channel)
-        MetadataUtils.attachHeaders(stub, authMetadata)
+
+    // Base health service stub without metadata
+    private val baseHealthService by lazy {
+        HealthServiceGrpcKt.HealthServiceCoroutineStub(channel)
+    }
+
+    // Get authenticated stub with current token
+    @Suppress("DEPRECATION")
+    private fun getAuthenticatedStub(): HealthServiceGrpcKt.HealthServiceCoroutineStub {
+        return MetadataUtils.attachHeaders(baseHealthService, getAuthMetadata())
     }
     
     private var isMonitoring = false
@@ -77,7 +82,7 @@ class GrpcHealthService(
                         .build()
                         
                     val startTime = System.currentTimeMillis()
-                    val response = healthService.check(request)
+                    val response = getAuthenticatedStub().check(request)
                     latency = System.currentTimeMillis() - startTime
                     
                     val isHealthy = response.status == Health.HealthCheckResponse.ServingStatus.SERVING
@@ -188,9 +193,9 @@ class GrpcHealthService(
                 .build()
                 
             val startTime = System.currentTimeMillis()
-            
-            // Use streaming heartbeat for real-time monitoring
-            healthService.heartbeat(kotlinx.coroutines.flow.flowOf(request))
+
+            // Use streaming heartbeat for real-time monitoring with fresh token
+            getAuthenticatedStub().heartbeat(kotlinx.coroutines.flow.flowOf(request))
                 .collect { response ->
                     val latency = System.currentTimeMillis() - startTime
                     
@@ -213,8 +218,8 @@ class GrpcHealthService(
                 .setClientId("android-client")
                 .setLastPing(System.currentTimeMillis())
                 .build()
-                
-            val response = healthService.getConnectionStatus(request)
+
+            val response = getAuthenticatedStub().getConnectionStatus(request)
             
             _connectionStatus.value.copy(
                 activeConnections = response.activeConnections,

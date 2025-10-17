@@ -14,7 +14,7 @@ data class DeviceInfo(
 data class LoginRequest(
     val email: String,
     val password: String,
-    val device: DeviceInfo
+    val device: DeviceInfo?
 )
 
 @Serializable

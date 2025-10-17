@@ -46,22 +46,24 @@ class GrpcService(private val context: Context) {
         builder.build()
     }
     
-    // Pre-create auth metadata
-    private val authMetadata: Metadata = run {
+    // Dynamic auth metadata - fetches fresh token on each call
+    private fun getAuthMetadata(): Metadata {
         val metadata = Metadata()
         sessionManager.getToken()?.let { token ->
             val authKey = Metadata.Key.of("authorization", Metadata.ASCII_STRING_MARSHALLER)
             metadata.put(authKey, "Bearer $token")
         }
-        metadata
+        return metadata
     }
-    
-    // Pre-create service stub - keep using MetadataUtils.attachHeaders for now
-    // TODO: Consider migrating to interceptors in future gRPC versions
+
+    // Base service stub without metadata
+    private val baseVehicleService: VehicleSearchServiceGrpcKt.VehicleSearchServiceCoroutineStub =
+        VehicleSearchServiceGrpcKt.VehicleSearchServiceCoroutineStub(channel)
+
+    // Get authenticated stub with current token
     @Suppress("DEPRECATION")
-    private val vehicleService: VehicleSearchServiceGrpcKt.VehicleSearchServiceCoroutineStub = run {
-        val stub = VehicleSearchServiceGrpcKt.VehicleSearchServiceCoroutineStub(channel)
-        MetadataUtils.attachHeaders(stub, authMetadata)
+    private fun getAuthenticatedStub(): VehicleSearchServiceGrpcKt.VehicleSearchServiceCoroutineStub {
+        return MetadataUtils.attachHeaders(baseVehicleService, getAuthMetadata())
     }
     
     // Add health monitoring
@@ -102,8 +104,8 @@ class GrpcService(private val context: Context) {
         }
         
         return try {
-            // ✅ CORRECT STREAMING METHOD: SearchVehicleStream
-            vehicleService.searchVehicleStream(request)
+            // ✅ CORRECT STREAMING METHOD: SearchVehicleStream with fresh token
+            getAuthenticatedStub().searchVehicleStream(request)
                 .map { response ->
                     VehicleResult(
                         id = response.id,
