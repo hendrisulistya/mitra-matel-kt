@@ -16,8 +16,24 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import android.util.Log
 import app.mitra.matel.utils.SessionManager
+import app.mitra.matel.network.models.LoginRequest
+import app.mitra.matel.network.models.LoginResponse
+import app.mitra.matel.utils.DeviceUtils
+import io.grpc.StatusException
+import io.grpc.Status
+import io.ktor.client.*
+import io.ktor.client.call.*
+import io.ktor.client.engine.android.*
+import io.ktor.client.plugins.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.request.*
+import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
+import kotlinx.serialization.json.Json
 
 data class GrpcConnectionStatus(
     val state: ConnectivityState = ConnectivityState.IDLE,
@@ -35,6 +51,8 @@ class GrpcHealthService(
 ) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val sessionManager = SessionManager(context)
+    private val refreshMutex = Mutex()
+    private var isRefreshing = false
     
     private val _connectionStatus = MutableStateFlow(GrpcConnectionStatus())
     val connectionStatus: StateFlow<GrpcConnectionStatus> = _connectionStatus.asStateFlow()
@@ -100,6 +118,46 @@ class GrpcHealthService(
                         break
                     } else {
                         Log.w("GrpcHealthService", "Service '$serviceName' not serving: ${response.status}")
+                    }
+                } catch (e: StatusException) {
+                    // Handle token expiration specifically
+                    if (e.status.code == Status.Code.UNAUTHENTICATED) {
+                        Log.d("GrpcHealthService", "Token expired during health check, attempting refresh")
+                        
+                        val refreshed = refreshTokenIfPossible()
+                        if (refreshed) {
+                            Log.d("GrpcHealthService", "Token refreshed, retrying health check")
+                            // Retry with new token
+                            try {
+                                val retryRequest = Health.HealthCheckRequest.newBuilder()
+                                    .setService(serviceName)
+                                    .build()
+                                val startTime = System.currentTimeMillis()
+                                val retryResponse = getAuthenticatedStub().check(retryRequest)
+                                latency = System.currentTimeMillis() - startTime
+                                
+                                val isHealthy = retryResponse.status == Health.HealthCheckResponse.ServingStatus.SERVING
+                                
+                                if (isHealthy) {
+                                    _connectionStatus.value = _connectionStatus.value.copy(
+                                        isHealthy = true,
+                                        latencyMs = latency,
+                                        lastHeartbeat = System.currentTimeMillis(),
+                                        errorMessage = null
+                                    )
+                                    Log.d("GrpcHealthService", "Health check SUCCESS for '$serviceName' after token refresh: ${latency}ms")
+                                    healthCheckSucceeded = true
+                                    break
+                                }
+                            } catch (retryException: Exception) {
+                                Log.e("GrpcHealthService", "Health check retry failed: ${retryException.message}")
+                            }
+                        } else {
+                            Log.w("GrpcHealthService", "Token refresh failed during health check")
+                            sessionManager.clearSession()
+                        }
+                    } else {
+                        Log.w("GrpcHealthService", "Health check failed for '$serviceName': ${e.message}")
                     }
                 } catch (e: Exception) {
                     Log.w("GrpcHealthService", "Health check failed for '$serviceName': ${e.message}")
@@ -211,7 +269,81 @@ class GrpcHealthService(
             Log.e("GrpcHealthService", "Heartbeat failed: ${e.message}")
         }
     }
-    
+
+    /**
+     * Attempt to refresh token using saved credentials
+     * Returns true if successful, false otherwise
+     */
+    private suspend fun refreshTokenIfPossible(): Boolean {
+        return refreshMutex.withLock {
+            if (isRefreshing) {
+                Log.d("GrpcHealthService", "Token refresh already in progress")
+                return@withLock false
+            }
+            
+            isRefreshing = true
+            
+            try {
+                val email = sessionManager.getEmail()
+                val password = sessionManager.getPassword()
+                
+                if (email.isNullOrBlank() || password.isNullOrBlank()) {
+                    Log.w("GrpcHealthService", "No saved credentials available for token refresh")
+                    return@withLock false
+                }
+                
+                Log.d("GrpcHealthService", "Attempting token refresh with saved credentials")
+                
+                // Create a simple HTTP client for token refresh
+                val refreshClient = HttpClient(Android) {
+                    install(ContentNegotiation) {
+                        json(Json {
+                            prettyPrint = true
+                            isLenient = true
+                            ignoreUnknownKeys = true
+                        })
+                    }
+                    install(HttpTimeout) {
+                        requestTimeoutMillis = 10000
+                        connectTimeoutMillis = 5000
+                        socketTimeoutMillis = 10000
+                    }
+                }
+                
+                try {
+                    val deviceInfo = DeviceUtils.getDeviceInfo(context)
+                    val loginRequest = LoginRequest(email, password, deviceInfo)
+                    val httpResponse = refreshClient.post("${ApiConfig.BASE_URL}${ApiConfig.Endpoints.LOGIN}") {
+                        contentType(ContentType.Application.Json)
+                        setBody(loginRequest)
+                    }
+                    
+                    if (httpResponse.status.isSuccess()) {
+                        val loginResponse: LoginResponse = httpResponse.body()
+                        val newToken = loginResponse.token
+                        
+                        // Update token in session manager
+                        sessionManager.saveToken(newToken)
+                        
+                        Log.d("GrpcHealthService", "Token refresh successful")
+                        return@withLock true
+                    } else {
+                        Log.w("GrpcHealthService", "Token refresh failed: ${httpResponse.status}")
+                        return@withLock false
+                    }
+                } finally {
+                    refreshClient.close()
+                }
+                
+            } catch (e: Exception) {
+                Log.e("GrpcHealthService", "Token refresh error: ${e.message}")
+                return@withLock false
+            } finally {
+                isRefreshing = false
+            }
+        }
+    }
+
     suspend fun getConnectionStatus(): GrpcConnectionStatus {
         return try {
             val request = Health.ConnectionStatusRequest.newBuilder()

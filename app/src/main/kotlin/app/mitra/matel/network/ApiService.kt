@@ -287,6 +287,51 @@ class ApiService(
     }
     
     /**
+     * Add Vehicle
+     */
+    suspend fun addVehicle(request: AddVehicleRequest): Result<ApiResponse<Any>> {
+        return try {
+            val response = client.post(ApiConfig.Endpoints.ADD_VEHICLE) {
+                contentType(ContentType.Application.Json)
+                setBody(request)
+            }
+            
+            if (response.status.isSuccess()) {
+                val apiResponse: ApiResponse<Any> = response.body()
+                Result.success(apiResponse)
+            } else {
+                // Try to parse error response from server
+                try {
+                    if (response.status == HttpStatusCode.BadRequest) {
+                        // Handle 400 error with error/details structure
+                        val errorResponse: ErrorResponse = response.body()
+                        val serverMessage = if (errorResponse.error.isNotBlank() && errorResponse.details.isNotBlank()) {
+                            "${errorResponse.error}: ${errorResponse.details}"
+                        } else if (errorResponse.error.isNotBlank()) {
+                            errorResponse.error
+                        } else if (errorResponse.details.isNotBlank()) {
+                            errorResponse.details
+                        } else {
+                            "Gagal menambahkan kendaraan"
+                        }
+                        Result.failure(Exception(serverMessage))
+                    } else {
+                        // Try standard ApiResponse format for other errors
+                        val errorResponse: ApiResponse<Any> = response.body()
+                        val serverMessage = errorResponse.message ?: "Gagal menambahkan: ${response.status.description}"
+                        Result.failure(Exception(serverMessage))
+                    }
+                } catch (parseException: Exception) {
+                    // Fallback to status description if parsing fails
+                    Result.failure(Exception("Gagal menambahkan: ${response.status.description}"))
+                }
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    /**
      * Update Device Location
      */
     suspend fun patchDeviceLocation(location: String): Result<ApiResponse<Unit>> {

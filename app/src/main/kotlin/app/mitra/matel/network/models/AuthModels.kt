@@ -98,6 +98,25 @@ data class DeviceConflictResponse(
     val message: String? = null
 )
 
+@Serializable
+data class AddVehicleRequest(
+    @SerialName("is_shared") val isShared: Boolean,
+    @SerialName("nama_konsumen") val namaKonsumen: String,
+    @SerialName("finance_name") val financeName: String,
+    @SerialName("nomor_polisi") val nomorPolisi: String? = null,
+    @SerialName("nomor_rangka") val nomorRangka: String? = null,
+    @SerialName("nomor_mesin") val nomorMesin: String? = null,
+    @SerialName("tipe_kendaraan") val tipeKendaraan: String,
+    @SerialName("warna_kendaraan") val warnaKendaraan: String,
+    @SerialName("tahun_kendaraan") val tahunKendaraan: String
+)
+
+@Serializable
+data class ErrorResponse(
+    val error: String,
+    val details: String
+)
+
 class DeviceConflictException(
     val data: DeviceConflictResponse
 ) : Exception(data.message ?: "Device conflict detected")

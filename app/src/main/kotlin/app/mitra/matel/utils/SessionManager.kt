@@ -38,8 +38,9 @@ class SessionManager(private val context: Context) {
         private const val KEY_PROFILE_SUBSCRIPTION_STATUS = "profile_subscription_status"
         private const val KEY_PROFILE_CREATED_AT = "profile_created_at"
         private const val KEY_PROFILE_UPDATED_AT = "profile_updated_at"
+        private const val KEY_PROFILE_ASSETS = "profile_assets"
         
-        // Device data keys
+        // Device keys
         private const val KEY_DEVICE_ID = "device_id"
         private const val KEY_DEVICE_UUID = "device_uuid"
         private const val KEY_DEVICE_MODEL = "device_model"
@@ -329,6 +330,14 @@ class SessionManager(private val context: Context) {
                 putString(KEY_PROFILE_CREATED_AT, profile.createdAt)
                 putString(KEY_PROFILE_UPDATED_AT, profile.updatedAt)
                 
+                // Save assets data (including avatar)
+                try {
+                    val assetsJson = Json.encodeToString(profile.assets)
+                    putString(KEY_PROFILE_ASSETS, assetsJson)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to serialize assets: ${e.message}")
+                }
+                
                 // Save device data if available
                 profile.device?.let { device ->
                     putString(KEY_DEVICE_ID, device.id)
@@ -364,6 +373,19 @@ class SessionManager(private val context: Context) {
                 val createdAt = sharedPreferences.getString(KEY_PROFILE_CREATED_AT, null)
                 val updatedAt = sharedPreferences.getString(KEY_PROFILE_UPDATED_AT, null)
                 
+                // Get assets data
+                val assetsJson = sharedPreferences.getString(KEY_PROFILE_ASSETS, null)
+                val assets = try {
+                    if (assetsJson != null) {
+                        Json.decodeFromString<JsonObject>(assetsJson)
+                    } else {
+                        JsonObject(emptyMap())
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to deserialize assets: ${e.message}")
+                    JsonObject(emptyMap())
+                }
+                
                 // Get device data
                 val deviceId = sharedPreferences.getString(KEY_DEVICE_ID, null)
                 val deviceUuid = sharedPreferences.getString(KEY_DEVICE_UUID, null)
@@ -386,7 +408,7 @@ class SessionManager(private val context: Context) {
                         fullName = fullName,
                         telephone = telephone,
                         tier = tier ?: "free",
-                        assets = JsonObject(emptyMap()), // Default value, not stored in preferences
+                        assets = assets, // Use the retrieved assets instead of empty map
                         device = device,
                         subscriptionStatus = subscriptionStatus ?: "inactive",
                         createdAt = createdAt,

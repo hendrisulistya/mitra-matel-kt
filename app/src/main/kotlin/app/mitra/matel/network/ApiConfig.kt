@@ -49,7 +49,7 @@ object ApiConfig {
         const val DEVICE_LOCATION= "/private/user/app/device/location"
         const val SEARCH_VEHICLE = "/vehicle/search"
         const val MY_VEHICLES = "/vehicle/my-vehicles"
-        const val ADD_VEHICLE = "/vehicle/add"
+        const val ADD_VEHICLE = "/private/user/app/vehicle/add"
         const val DETAIL_VEHICLE = "/private/vehicle/detail/:id"
         const val UPDATE_VEHICLE = "/private/vehicle/update"
         const val SEARCH_HISTORY = "/history/search"
