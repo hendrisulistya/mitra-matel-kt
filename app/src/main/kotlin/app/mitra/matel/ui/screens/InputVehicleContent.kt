@@ -5,8 +5,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -19,7 +21,9 @@ import app.mitra.matel.network.models.AddVehicleRequest
 import kotlinx.coroutines.launch
 
 @Composable
-fun InputVehicleContent() {
+fun InputVehicleContent(
+    onNavigateBack: () -> Unit = {}
+) {
     val context = LocalContext.current
     val apiService = remember { ApiService(context) }
     val coroutineScope = rememberCoroutineScope()
@@ -35,13 +39,14 @@ fun InputVehicleContent() {
     var isShared by remember { mutableStateOf(false) }
     
     var isLoading by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    var successMessage by remember { mutableStateOf<String?>(null) }
+    var showSuccessDialog by remember { mutableStateOf(false) }
+    var showErrorDialog by remember { mutableStateOf(false) }
+    var dialogMessage by remember { mutableStateOf("") }
     
     // Validation function
     fun isFormValid(): Boolean {
         val hasValidNomorPolisi = nomorPolisi.isNotBlank() && nomorPolisi.length >= 3
-        val hasValidNomorRangka = nomorRangka.isNotBlank() && nomorRangka.length >= 15
+        val hasValidNomorRangka = nomorRangka.isNotBlank() && nomorRangka.length >= 6 && nomorRangka.length <= 20
         val hasValidNomorMesin = nomorMesin.isNotBlank() && nomorMesin.length >= 4
         
         return hasValidNomorPolisi || hasValidNomorRangka || hasValidNomorMesin
@@ -58,20 +63,17 @@ fun InputVehicleContent() {
         warnaKendaraan = ""
         tahunKendaraan = ""
         isShared = false
-        errorMessage = null
-        successMessage = null
     }
     
     // Submit function
     fun submitVehicle() {
         if (!isFormValid()) {
-            errorMessage = "Mohon isi minimal satu dari: Nomor Polisi (min 3 karakter), Nomor Rangka (min 15 karakter), atau Nomor Mesin (min 4 karakter) dengan format yang benar"
+            dialogMessage = "Mohon isi minimal satu dari: Nomor Polisi (min 3 karakter), Nomor Rangka (6-20 karakter), atau Nomor Mesin (min 4 karakter) dengan format yang benar"
+            showErrorDialog = true
             return
         }
         
         isLoading = true
-        errorMessage = null
-        successMessage = null
         
         coroutineScope.launch {
             try {
@@ -90,15 +92,18 @@ fun InputVehicleContent() {
                 val result = apiService.addVehicle(request)
                 result.fold(
                     onSuccess = { response ->
-                        successMessage = response.message
+                        dialogMessage = response.message
+                        showSuccessDialog = true
                         clearForm()
                     },
                     onFailure = { exception ->
-                        errorMessage = exception.message ?: "Terjadi kesalahan saat menyimpan data"
+                        dialogMessage = exception.message ?: "Terjadi kesalahan saat menyimpan data"
+                        showErrorDialog = true
                     }
                 )
             } catch (e: Exception) {
-                errorMessage = e.message ?: "Terjadi kesalahan saat menyimpan data"
+                dialogMessage = e.message ?: "Terjadi kesalahan saat menyimpan data"
+                showErrorDialog = true
             } finally {
                 isLoading = false
             }
@@ -120,34 +125,6 @@ fun InputVehicleContent() {
                 Text("Input Data Kendaraan", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text("Masukkan informasi kendaraan baru", style = MaterialTheme.typography.bodyMedium)
-            }
-        }
-
-        // Show error message
-        errorMessage?.let { message ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
-            ) {
-                Text(
-                    text = message,
-                    modifier = Modifier.padding(16.dp),
-                    color = MaterialTheme.colorScheme.onErrorContainer
-                )
-            }
-        }
-
-        // Show success message
-        successMessage?.let { message ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-            ) {
-                Text(
-                    text = message,
-                    modifier = Modifier.padding(16.dp),
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
             }
         }
 
@@ -263,15 +240,15 @@ fun InputVehicleContent() {
                     placeholder = { Text("MHKA1BA1A0A123456") },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !isLoading,
-                    isError = nomorRangka.isNotEmpty() && nomorRangka.length < 15,
+                    isError = nomorRangka.isNotEmpty() && nomorRangka.length < 6,
                     supportingText = {
-                        if (nomorRangka.isNotEmpty() && nomorRangka.length < 15) {
+                        if (nomorRangka.isNotEmpty() && nomorRangka.length < 6) {
                             Text(
-                                text = "Minimal 15 karakter",
+                                text = "Minimal 6 karakter",
                                 color = MaterialTheme.colorScheme.error
                             )
                         } else {
-                            Text("15-20 karakter, huruf dan angka saja")
+                            Text("6-20 karakter, huruf dan angka saja")
                         }
                     }
                 )
@@ -364,12 +341,85 @@ fun InputVehicleContent() {
             }
         }
     }
+    
+    // Success Dialog
+    if (showSuccessDialog) {
+        AlertDialog(
+            onDismissRequest = { },
+            title = {
+                Text(
+                    text = "Berhasil!",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = dialogMessage,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showSuccessDialog = false
+                        onNavigateBack()
+                    }
+                ) {
+                    Text("OK")
+                }
+            },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = "Success",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        )
+    }
+    
+    // Error Dialog
+    if (showErrorDialog) {
+        AlertDialog(
+            onDismissRequest = { },
+            title = {
+                Text(
+                    text = "Terjadi Kesalahan",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = dialogMessage,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showErrorDialog = false
+                    }
+                ) {
+                    Text("OK")
+                }
+            },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = "Error",
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
+        )
+    }
 }
 
 @Preview
 @Composable
 fun InputVehicleContentPreview() {
     MaterialTheme {
-        InputVehicleContent()
+        InputVehicleContent(onNavigateBack = {})
     }
 }

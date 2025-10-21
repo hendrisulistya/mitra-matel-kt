@@ -72,7 +72,7 @@ data class ProfileResponse(
 
 @Serializable
 data class ApiResponse<T>(
-    val success: Boolean,
+    @SerialName("sucess") val success: Boolean,
     val message: String,
     val data: T? = null
 )
@@ -114,7 +114,19 @@ data class AddVehicleRequest(
 @Serializable
 data class ErrorResponse(
     val error: String,
-    val details: String
+    val details: String? = null
+)
+
+@Serializable
+data class AddVehicleResponse(
+    val message: String,
+    @SerialName("vehicle_id") val vehicleId: String,
+    @SerialName("is_shared") val isShared: Boolean
+)
+
+@Serializable
+data class SimpleErrorResponse(
+    val error: String
 )
 
 class DeviceConflictException(

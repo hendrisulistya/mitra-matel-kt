@@ -251,14 +251,14 @@ class ApiService(
     /**
      * Vehicle Search
      */
-    suspend fun searchVehicle(plateNumber: String): Result<ApiResponse<Any>> {
+    suspend fun searchVehicle(plateNumber: String): Result<ApiResponse<JsonObject>> {
         return try {
             val response = client.get(ApiConfig.Endpoints.SEARCH_VEHICLE) {
                 parameter("plateNumber", plateNumber)
             }
             
             if (response.status.isSuccess()) {
-                val apiResponse: ApiResponse<Any> = response.body()
+                val apiResponse = response.body<ApiResponse<JsonObject>>()
                 Result.success(apiResponse)
             } else {
                 Result.failure(Exception("Search failed: ${response.status.description}"))
@@ -289,7 +289,7 @@ class ApiService(
     /**
      * Add Vehicle
      */
-    suspend fun addVehicle(request: AddVehicleRequest): Result<ApiResponse<Any>> {
+    suspend fun addVehicle(request: AddVehicleRequest): Result<AddVehicleResponse> {
         return try {
             val response = client.post(ApiConfig.Endpoints.ADD_VEHICLE) {
                 contentType(ContentType.Application.Json)
@@ -297,29 +297,41 @@ class ApiService(
             }
             
             if (response.status.isSuccess()) {
-                val apiResponse: ApiResponse<Any> = response.body()
-                Result.success(apiResponse)
+                val addVehicleResponse = response.body<AddVehicleResponse>()
+                Result.success(addVehicleResponse)
             } else {
-                // Try to parse error response from server
+                // Handle different error response formats based on status code
                 try {
-                    if (response.status == HttpStatusCode.BadRequest) {
-                        // Handle 400 error with error/details structure
-                        val errorResponse: ErrorResponse = response.body()
-                        val serverMessage = if (errorResponse.error.isNotBlank() && errorResponse.details.isNotBlank()) {
-                            "${errorResponse.error}: ${errorResponse.details}"
-                        } else if (errorResponse.error.isNotBlank()) {
-                            errorResponse.error
-                        } else if (errorResponse.details.isNotBlank()) {
-                            errorResponse.details
-                        } else {
-                            "Gagal menambahkan kendaraan"
+                    when (response.status) {
+                        HttpStatusCode.BadRequest -> {
+                            // 400 - Validation errors with error/details structure
+                            val errorResponse: ErrorResponse = response.body()
+                            val serverMessage = if (!errorResponse.details.isNullOrBlank()) {
+                                "${errorResponse.error}: ${errorResponse.details}"
+                            } else {
+                                errorResponse.error
+                            }
+                            Result.failure(Exception(serverMessage))
                         }
-                        Result.failure(Exception(serverMessage))
-                    } else {
-                        // Try standard ApiResponse format for other errors
-                        val errorResponse: ApiResponse<Any> = response.body()
-                        val serverMessage = errorResponse.message ?: "Gagal menambahkan: ${response.status.description}"
-                        Result.failure(Exception(serverMessage))
+                        HttpStatusCode.Unauthorized -> {
+                            // 401 - Authentication errors
+                            val errorResponse: SimpleErrorResponse = response.body()
+                            Result.failure(Exception(errorResponse.error))
+                        }
+                        HttpStatusCode.Conflict -> {
+                            // 409 - Conflict errors
+                            val errorResponse: SimpleErrorResponse = response.body()
+                            Result.failure(Exception(errorResponse.error))
+                        }
+                        HttpStatusCode.InternalServerError -> {
+                            // 500 - Internal server errors
+                            val errorResponse: SimpleErrorResponse = response.body()
+                            Result.failure(Exception(errorResponse.error))
+                        }
+                        else -> {
+                            // Fallback for other status codes
+                            Result.failure(Exception("Gagal menambahkan: ${response.status.description}"))
+                        }
                     }
                 } catch (parseException: Exception) {
                     // Fallback to status description if parsing fails
