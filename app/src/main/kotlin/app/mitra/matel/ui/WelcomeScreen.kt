@@ -19,7 +19,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.mitra.matel.BuildConfig
+import app.mitra.matel.AppConfig
 import app.mitra.matel.R
 
 @Composable
@@ -133,7 +133,7 @@ fun WelcomeScreen(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        text = "Version v${BuildConfig.VERSION_NAME}_${BuildConfig.BUILD_NUMBER}+${if (BuildConfig.IS_PRODUCTION) "prod" else "dev"}",
+                        text = "Version ${AppConfig.getAppVersion()}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                     )

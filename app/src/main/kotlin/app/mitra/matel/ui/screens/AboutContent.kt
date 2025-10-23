@@ -16,7 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import app.mitra.matel.BuildConfig
+import app.mitra.matel.AppConfig
 import app.mitra.matel.ui.theme.Purple40
 
 @Composable
@@ -51,7 +51,7 @@ fun AboutContent(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "v${BuildConfig.VERSION_NAME}_${BuildConfig.BUILD_NUMBER}+${if (BuildConfig.IS_PRODUCTION) "prod" else "dev"}",
+                    text = AppConfig.getAppVersion(),
                     style = MaterialTheme.typography.bodyMedium,
                     color = Purple40.copy(alpha = 0.8f)
                 )

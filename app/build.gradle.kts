@@ -76,26 +76,6 @@ android {
         }
     }
 
-    buildTypes {
-        debug {
-            isDebuggable = true
-            applicationIdSuffix = ".debug"
-            versionNameSuffix = "-debug"
-            buildConfigField("boolean", "IS_PRODUCTION", "false")
-        }
-        
-        release {
-            isMinifyEnabled = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            buildConfigField("boolean", "IS_PRODUCTION", "true")
-            // Only use signing config if keystore is available
-            val keystorePasswordEnv = System.getenv("KEYSTORE_PASSWORD")
-            if (keystorePasswordEnv != null && rootProject.file("my-release-key.jks").exists()) {
-                signingConfig = signingConfigs.getByName("release")
-            }
-        }
-    }
-    
     sourceSets {
         getByName("main") {
             proto {

@@ -1,14 +1,14 @@
 package app.mitra.matel.network
 
-import app.mitra.matel.BuildConfig
+import app.mitra.matel.AppConfig
 
 /**
  * API Configuration
- * Environment is automatically determined by build type (debug/release)
+ * Environment is controlled by AppConfig
  */
 object ApiConfig {
-    // Environment is now controlled by BuildConfig from build.gradle.kts
-    private val isProduction = BuildConfig.IS_PRODUCTION
+    // Environment control from centralized AppConfig
+    private val isProduction = AppConfig.IS_PRODUCTION
     
     // API Base URLs
     // For Android Emulator - 10.0.2.2 maps to host machine's localhost

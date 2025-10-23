@@ -35,7 +35,7 @@ import app.mitra.matel.network.models.VehicleCountResponse
 import app.mitra.matel.utils.SessionManager
 import app.mitra.matel.ui.theme.MitraMatelTheme
 import app.mitra.matel.ui.theme.Purple40
-import app.mitra.matel.BuildConfig
+import app.mitra.matel.AppConfig
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -199,7 +199,7 @@ fun SidebarMenu(
                         color = Purple40
                     )
                     Text(
-                        text = "v${BuildConfig.VERSION_NAME}_${BuildConfig.BUILD_NUMBER}+${if (BuildConfig.IS_PRODUCTION) "prod" else "dev"}",
+                        text = AppConfig.getAppVersion(),
                         style = MaterialTheme.typography.labelSmall,
                         color = Purple40.copy(alpha = 0.6f)
                     )

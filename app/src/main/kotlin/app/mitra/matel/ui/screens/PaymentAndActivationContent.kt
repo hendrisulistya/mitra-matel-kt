@@ -119,7 +119,8 @@ fun PaymentAndActivationContent() {
     val bankAccounts = listOf(
         BankAccount("BRI", "051501015186507", "Yanu Marwanto", R.raw.ic_bank_bri),
         BankAccount("BCA", "0132553848", "Yanu Marwanto", R.raw.ic_bank_bca),
-        BankAccount("Mandiri", "1360017368678", "Yanu Marwanto", R.raw.ic_bank_mandiri)
+        BankAccount("Mandiri", "1360017368678", "Yanu Marwanto", R.raw.ic_bank_mandiri),
+        BankAccount("BNI", "815837828", "Yanu Marwanto", R.raw.ic_bank_bni)
     )
     
     // Unified subscription plans
