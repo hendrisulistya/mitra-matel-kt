@@ -41,6 +41,7 @@ fun DashboardScreen(
     val grpcService = remember { GrpcService(context) }
     val searchViewModel = remember { SearchViewModel(grpcService) }
     val profileViewModel = remember { ProfileViewModel(context) }
+    val apiService = remember { app.mitra.matel.network.ApiService(context) }
     val searchUiState by searchViewModel.uiState.collectAsState()
     val profileState by profileViewModel.profileState.collectAsState()
     val profile by profileViewModel.profile.collectAsState()
@@ -281,7 +282,8 @@ fun DashboardScreen(
                     }
                 },
                 onClose = { isSidebarVisible = false },
-                profile = profile
+                profile = profile,
+                apiService = apiService
             )
         }
 

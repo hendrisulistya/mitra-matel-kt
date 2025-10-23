@@ -342,6 +342,21 @@ class ApiService(
             Result.failure(e)
         }
     }
+
+    suspend fun getVehicleCount(): Result<VehicleCountResponse> {
+        return try {
+            val response = client.get(ApiConfig.Endpoints.VEHICLES_COUNT)
+            
+            if (response.status.isSuccess()) {
+                val vehicleCountResponse: VehicleCountResponse = response.body()
+                Result.success(vehicleCountResponse)
+            } else {
+                Result.failure(Exception("Failed to get vehicle count: ${response.status.description}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
     
     /**
      * Update Device Location

@@ -5,6 +5,11 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 
 @Serializable
+data class VehicleCountResponse(
+    val total: Int
+)
+
+@Serializable
 data class DeviceInfo(
     @SerialName("device_id")
     val deviceId: String,

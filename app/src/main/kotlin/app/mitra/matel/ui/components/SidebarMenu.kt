@@ -29,16 +29,32 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.mitra.matel.network.ApiService
 import app.mitra.matel.network.models.ProfileResponse
+import app.mitra.matel.network.models.VehicleCountResponse
 import app.mitra.matel.utils.SessionManager
+import app.mitra.matel.ui.theme.MitraMatelTheme
+import app.mitra.matel.ui.theme.Purple40
+import java.text.NumberFormat
+import java.util.Locale
 
 @Composable
 fun SidebarMenu(
     selectedItem: String,
     onMenuItemClick: (String) -> Unit,
     onClose: () -> Unit,
-    profile: ProfileResponse? = null
+    profile: ProfileResponse? = null,
+    apiService: ApiService? = null
 ) {
+    // State for vehicle count
+    var vehicleCount by remember { mutableStateOf<Int?>(null) }
+    
+    // Fetch vehicle count
+    LaunchedEffect(Unit) {
+        apiService?.getVehicleCount()?.onSuccess { response ->
+            vehicleCount = response.total
+        }
+    }
     val menuSections = listOf(
         MenuSection(
             items = listOf(
@@ -72,7 +88,8 @@ fun SidebarMenu(
             .fillMaxHeight()
             .width(280.dp),
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 2.dp
+        tonalElevation = 2.dp,
+        shadowElevation = 4.dp
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
@@ -83,7 +100,7 @@ fun SidebarMenu(
                     .fillMaxWidth()
                     .padding(16.dp),
                 shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
+                color = Purple40.copy(alpha = 0.6f),
                 tonalElevation = 1.dp
             ) {
                 Row(
@@ -117,13 +134,13 @@ fun SidebarMenu(
                                 Icons.Default.Star,
                                 contentDescription = "Tier",
                                 modifier = Modifier.size(12.dp),
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = Purple40
                             )
                             Text(
                                 text = profile?.tier?.replaceFirstChar { it.uppercase() } ?: "Free",
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.primary
+                                color = Purple40
                             )
                         }
                     }
@@ -171,10 +188,14 @@ fun SidebarMenu(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "10,000 Kendaraan",
+                        text = if (vehicleCount != null) {
+                            "${NumberFormat.getNumberInstance(Locale("id")).format(vehicleCount)} Kendaraan"
+                        } else {
+                            "Loading Kendaraan..."
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = Purple40
                     )
                     Text(
                         text = "v0.0.1",
@@ -194,13 +215,13 @@ fun SidebarMenuItem(
     onClick: () -> Unit
 ) {
     val backgroundColor = if (isSelected) {
-        MaterialTheme.colorScheme.primaryContainer
+        Purple40.copy(alpha = 0.15f)
     } else {
         MaterialTheme.colorScheme.surface
     }
     
     val contentColor = if (isSelected) {
-        MaterialTheme.colorScheme.onPrimaryContainer
+        Purple40
     } else {
         MaterialTheme.colorScheme.onSurface
     }
@@ -285,7 +306,7 @@ private fun DefaultSidebarAvatar(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.primary),
+            .background(Purple40),
         contentAlignment = Alignment.Center
     ) {
         Icon(
