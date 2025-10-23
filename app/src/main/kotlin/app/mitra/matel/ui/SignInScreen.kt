@@ -1,7 +1,9 @@
 package app.mitra.matel.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Email
@@ -10,7 +12,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -19,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import app.mitra.matel.network.ApiConfig
 import app.mitra.matel.viewmodel.AuthState
 import app.mitra.matel.viewmodel.AuthViewModel
+import app.mitra.matel.R
 import android.util.Log
 
 @Composable
@@ -66,19 +72,21 @@ fun SignInScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // Logo placeholder
-        Surface(
-            modifier = Modifier.size(120.dp),
-            color = MaterialTheme.colorScheme.primaryContainer,
-            shape = MaterialTheme.shapes.large
+        // Logo
+        Box(
+            modifier = Modifier
+                .size(120.dp)
+                .clip(CircleShape),
+            contentAlignment = Alignment.Center
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                Text(
-                    text = "MM",
-                    style = MaterialTheme.typography.displayLarge,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-            }
+            Image(
+                painter = painterResource(id = R.raw.mmi_logo),
+                contentDescription = "MMI Logo",
+                modifier = Modifier
+                    .size(120.dp)
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
         }
 
         Spacer(modifier = Modifier.height(8.dp))

@@ -1,5 +1,6 @@
 package app.mitra.matel.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,6 +16,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -23,6 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.mitra.matel.R
 
 @Composable
 fun SignUpScreen(
@@ -45,20 +49,19 @@ fun SignUpScreen(
             .padding(horizontal = 24.dp, vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Logo placeholder (60x60 circle)
+        // Logo
         Box(
             modifier = Modifier
-                .size(100.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primary)
-                .border(3.dp, MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                .size(100.dp),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                Icons.Default.Person,
-                contentDescription = "Logo",
-                modifier = Modifier.size(36.dp),
-                tint = MaterialTheme.colorScheme.onPrimary
+            Image(
+                painter = painterResource(id = R.raw.mmi_logo),
+                contentDescription = "MMI Logo",
+                modifier = Modifier
+                    .size(100.dp)
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
             )
         }
 

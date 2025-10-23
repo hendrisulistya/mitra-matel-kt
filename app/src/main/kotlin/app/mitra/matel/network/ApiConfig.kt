@@ -1,12 +1,14 @@
 package app.mitra.matel.network
 
+import app.mitra.matel.BuildConfig
+
 /**
  * API Configuration
- * Change isProduction to toggle between local and production environments
+ * Environment is automatically determined by build type (debug/release)
  */
 object ApiConfig {
-    // Toggle this to switch between environments
-    private const val isProduction = false
+    // Environment is now controlled by BuildConfig from build.gradle.kts
+    private val isProduction = BuildConfig.IS_PRODUCTION
     
     // API Base URLs
     // For Android Emulator - 10.0.2.2 maps to host machine's localhost

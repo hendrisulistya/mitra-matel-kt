@@ -1,5 +1,6 @@
 package app.mitra.matel.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -11,11 +12,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.mitra.matel.BuildConfig
+import app.mitra.matel.R
 
 @Composable
 fun WelcomeScreen(
@@ -42,20 +47,19 @@ fun WelcomeScreen(
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Logo placeholder (100x100 circle)
+                // Logo
                 Box(
                     modifier = Modifier
-                        .size(240.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary)
-                        .border(4.dp, MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                        .size(240.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        Icons.Default.Person,
-                        contentDescription = "Logo",
-                        modifier = Modifier.size(60.dp),
-                        tint = MaterialTheme.colorScheme.onPrimary
+                    Image(
+                        painter = painterResource(id = R.raw.mmi_logo),
+                        contentDescription = "MMI Logo",
+                        modifier = Modifier
+                            .size(240.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
                     )
                 }
             }
@@ -108,7 +112,7 @@ fun WelcomeScreen(
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Text(
-                        text = "Dengan menggunakan aplikasi ini, Anda menyetujui Syarat & Ketentuan serta Kebijakan Privasi kami. Aplikasi ini menyediakan layanan informasi kendaraan bermotor untuk keperluan yang sah dan bertanggung jawab.",
+                        text = "* Peringatan Penting: Aplikasi ini menyediakan data pelacakan kendaraan untuk tujuan informasi. Selalu hubungi pihak finance terkait untuk konfirmasi data dan legalitas sebelum mengambil tindakan.",
                         modifier = Modifier.padding(12.dp),
                         style = MaterialTheme.typography.bodySmall,
                         fontSize = 8.sp,
@@ -129,13 +133,7 @@ fun WelcomeScreen(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        text = "Total Kendaraan : 10000",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        text = "Version 0.0.000+production (build)",
+                        text = "Version v${BuildConfig.VERSION_NAME}_${BuildConfig.BUILD_NUMBER}+${if (BuildConfig.IS_PRODUCTION) "prod" else "dev"}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                     )

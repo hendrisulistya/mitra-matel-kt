@@ -22,9 +22,21 @@ android {
         
         // Add build number that increments with each build
         buildConfigField("int", "BUILD_NUMBER", "${System.currentTimeMillis() / 1000}")
+    }
+
+    buildTypes {
+        debug {
+            isDebuggable = true
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+            buildConfigField("boolean", "IS_PRODUCTION", "false")
+        }
         
-        // Import isProduction flag from ApiConfig
-        buildConfigField("boolean", "IS_PRODUCTION", "false")
+        release {
+            isMinifyEnabled = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            buildConfigField("boolean", "IS_PRODUCTION", "true")
+        }
     }
 
     buildFeatures {
@@ -66,11 +78,21 @@ android {
 
     buildTypes {
         debug {
+            isDebuggable = true
             applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+            buildConfigField("boolean", "IS_PRODUCTION", "false")
         }
+        
         release {
-            isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            buildConfigField("boolean", "IS_PRODUCTION", "true")
+            // Only use signing config if keystore is available
+            val keystorePasswordEnv = System.getenv("KEYSTORE_PASSWORD")
+            if (keystorePasswordEnv != null && rootProject.file("my-release-key.jks").exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
     
@@ -127,6 +149,7 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.fragment.ktx)
     implementation(libs.androidx.lifecycle.viewmodelCompose)
     implementation(libs.androidx.lifecycle.runtimeCompose)
 
