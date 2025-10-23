@@ -39,6 +39,30 @@
 -keep class com.google.protobuf.** { *; }
 -dontwarn com.google.protobuf.**
 
+# Keep generated gRPC classes (CRITICAL for release builds)
+-keep class grpc.** { *; }
+-keep class grpc.Health** { *; }
+-keep class grpc.Vehicle** { *; }
+-keep class grpc.HealthServiceGrpcKt** { *; }
+-keep class grpc.VehicleSearchServiceGrpcKt** { *; }
+
+# Keep gRPC stub classes and their methods
+-keepclassmembers class * extends io.grpc.stub.AbstractStub {
+    *;
+}
+
+# Keep gRPC service implementations
+-keep class * extends io.grpc.BindableService { *; }
+
+# Keep gRPC method descriptors
+-keepclassmembers class * {
+    @io.grpc.stub.annotations.RpcMethod *;
+}
+
+# Keep protobuf message classes
+-keep class * extends com.google.protobuf.GeneratedMessageLite { *; }
+-keep class * extends com.google.protobuf.GeneratedMessageV3 { *; }
+
 # Keep serialization classes
 -keep class kotlinx.serialization.** { *; }
 -dontwarn kotlinx.serialization.**

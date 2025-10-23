@@ -263,7 +263,7 @@ fun SearchForm(
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp),
-                        readOnly = false,
+                        readOnly = true,
                         singleLine = true,
                         textStyle = TextStyle(
                             color = MaterialTheme.colorScheme.onSurface,
