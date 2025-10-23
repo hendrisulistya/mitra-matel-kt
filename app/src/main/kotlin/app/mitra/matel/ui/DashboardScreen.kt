@@ -32,7 +32,8 @@ import app.mitra.matel.utils.SessionManager
 fun DashboardScreen(
     onLogout: () -> Unit,
     onNavigateToMicSearch: () -> Unit = {},
-    onNavigateToVehicleDetail: (String) -> Unit = {}
+    onNavigateToVehicleDetail: (String) -> Unit = {},
+    onNavigateBack: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
@@ -233,8 +234,10 @@ fun DashboardScreen(
                             onVehicleClick = onNavigateToVehicleDetail
                         )
                         "Data Kendaraan saya" -> MyVehicleDataContent()
-                        "Input Data Kendaraan" -> InputVehicleContent()
-                        "Aktivasi dan Pembayaran" -> PaymentAndActivationContent()
+                        "Input Data Kendaraan" -> InputVehicleContent(
+                            onNavigateBack = onNavigateBack
+                        )
+                        "Aktivasi & Pembayaran" -> PaymentAndActivationContent()
                         "Riwayat Pembayaran" -> PaymentHistoryContent()
                         "About" -> AboutContent()
                         "Setting" -> SettingsContent()

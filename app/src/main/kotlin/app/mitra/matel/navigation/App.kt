@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
+import app.mitra.matel.ui.theme.MitraMatelTheme
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -42,7 +43,7 @@ import app.mitra.matel.network.NetworkDebugHelper
 @Composable
 @Preview
 fun App() {
-    MaterialTheme {
+    MitraMatelTheme {
         val context = LocalContext.current
         val sessionManager = remember { SessionManager(context) }
         val authViewModel = remember { AuthViewModel(context) }
@@ -215,6 +216,11 @@ fun App() {
                     },
                     onNavigateToVehicleDetail = { vehicleId ->
                         navController.navigate("vehicle_detail/$vehicleId")
+                    },
+                    onNavigateBack = {
+                        navController.navigate("dashboard") {
+                            popUpTo("dashboard") { inclusive = true }
+                        }
                     }
                 )
             }
