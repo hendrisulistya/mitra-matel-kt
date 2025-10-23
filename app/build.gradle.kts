@@ -18,11 +18,18 @@ android {
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
-        versionName = "1.0"
+        versionName = "0.9.112"
+        
+        // Add build number that increments with each build
+        buildConfigField("int", "BUILD_NUMBER", "${System.currentTimeMillis() / 1000}")
+        
+        // Import isProduction flag from ApiConfig
+        buildConfigField("boolean", "IS_PRODUCTION", "false")
     }
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     compileOptions {
