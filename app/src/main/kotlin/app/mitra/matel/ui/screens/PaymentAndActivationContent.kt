@@ -17,6 +17,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import app.mitra.matel.ui.theme.Purple40
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -40,11 +43,26 @@ data class BankAccount(
 )
 
 @Composable
-fun BankAccountCard(account: BankAccount) {
+fun BankAccountCard(
+    account: BankAccount,
+    isSelected: Boolean = false,
+    onSelect: () -> Unit = {}
+) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onSelect() },
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 4.dp else 1.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) 
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f) 
+            else 
+                MaterialTheme.colorScheme.surfaceVariant
+        ),
+        border = if (isSelected) 
+            BorderStroke(2.dp, MaterialTheme.colorScheme.primary) 
+        else 
+            null
     ) {
         Row(
             modifier = Modifier
@@ -119,13 +137,14 @@ fun PaymentAndActivationContent() {
     
     val yearlyPlan = SubscriptionPlan(
         "Tahunan",
-        "1500000",
+        "1000000",
         lastThreeDigits
     )
     
     val plans = arrayOf(weeklyPlan, monthlyPlan, yearlyPlan)
 
     var selectedPlan by remember { mutableStateOf<SubscriptionPlan?>(null) }
+    var selectedBankAccount by remember { mutableStateOf<BankAccount?>(null) }
 
     Column(
         modifier = Modifier
@@ -148,8 +167,18 @@ fun PaymentAndActivationContent() {
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
                 
+                Text(
+                    "Pilih rekening bank untuk pembayaran:",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                
                 bankAccounts.forEach { account ->
-                    BankAccountCard(account = account)
+                    BankAccountCard(
+                        account = account,
+                        isSelected = selectedBankAccount == account,
+                        onSelect = { selectedBankAccount = account }
+                    )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
             }
@@ -181,22 +210,50 @@ fun PaymentAndActivationContent() {
 
         if (selectedPlan != null) {
             Button(
-                onClick = { /* Process payment */ },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                // Calculate final price for display
-                val plan = selectedPlan!!
-                val finalPrice = if (plan.suffix.isNotEmpty()) {
-                    val basePriceNumber = plan.basePrice.replace(".", "")
-                    val lastThreeDigits = basePriceNumber.takeLast(3)
-                    val priceWithoutLastThree = basePriceNumber.dropLast(3)
-                    val formattedPrice = "${priceWithoutLastThree}.${plan.suffix}"
-                    "Rp $formattedPrice"
-                } else {
-                    "Rp ${plan.basePrice}"
+                    onClick = {
+                        // Create message with selected plan and bank account details
+                        val messageText = if (selectedPlan != null) {
+                            val plan = selectedPlan!!
+                            val finalPrice = if (plan.suffix.isNotEmpty()) {
+                                val basePriceNumber = plan.basePrice.replace(".", "")
+                                val priceWithoutLastThree = basePriceNumber.dropLast(3)
+                                val formattedPrice = "${priceWithoutLastThree}.${plan.suffix}"
+                                "Rp $formattedPrice"
+                            } else {
+                                "Rp ${plan.basePrice}"
+                            }
+                            
+                            val bankInfo = if (selectedBankAccount != null) {
+                                "\nBank: ${selectedBankAccount!!.bankName}" +
+                                "\nNo. Rekening: ${selectedBankAccount!!.accountNumber}" +
+                                "\nAtas Nama: ${selectedBankAccount!!.accountName}"
+                            } else {
+                                ""
+                            }
+                            
+                            "Halo, saya sudah melakukan pembayaran untuk paket ${plan.name} senilai $finalPrice.$bankInfo\nMohon konfirmasi aktivasi paket saya. Terima kasih."
+                        } else {
+                            "Halo, saya butuh bantuan dengan aplikasi Mitra Matel"
+                        }
+                        
+                        val encodedMessage = Uri.encode(messageText)
+                        val whatsappIntent = Intent(Intent.ACTION_VIEW).apply {
+                            data = Uri.parse("https://wa.me/6281936706368?text=$encodedMessage")
+                        }
+                        context.startActivity(whatsappIntent)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Purple40 // App's standard violet color
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Phone,
+                        contentDescription = "WhatsApp",
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                    Text("Konfirmasi Pembayaran")
                 }
-                Text("Lanjutkan Pembayaran - $finalPrice")
-            }
         }
 
         // Third Row/Footer: WhatsApp Contact Button
@@ -217,8 +274,11 @@ fun PaymentAndActivationContent() {
                 
                 Button(
                     onClick = {
+                        // Create message for help center
+                        val messageText = "Halo, saya butuh bantuan untuk aktivasi aplikasi Mitra Matel"
+                        val encodedMessage = Uri.encode(messageText)
                         val whatsappIntent = Intent(Intent.ACTION_VIEW).apply {
-                            data = Uri.parse("https://wa.me/6281936706368?text=Halo,%20saya%20butuh%20bantuan%20dengan%20aplikasi%20Mitra%20Matel")
+                            data = Uri.parse("https://wa.me/6281936706368?text=$encodedMessage")
                         }
                         context.startActivity(whatsappIntent)
                     },
@@ -228,11 +288,11 @@ fun PaymentAndActivationContent() {
                     )
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Phone,
-                        contentDescription = "WhatsApp",
+                        imageVector = Icons.Filled.Phone,
+                        contentDescription = "Help Center",
                         modifier = Modifier.padding(end = 8.dp)
                     )
-                    Text("Hubungi Admin via WhatsApp")
+                    Text("Hubungi Admin")
                 }
             }
         }
@@ -249,6 +309,7 @@ fun PlanCard(plan: SubscriptionPlan, isSelected: Boolean, onSelect: () -> Unit) 
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
         ),
+        border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
         onClick = onSelect
     ) {
         Column(
@@ -268,12 +329,37 @@ fun PlanCard(plan: SubscriptionPlan, isSelected: Boolean, onSelect: () -> Unit) 
                 // Calculate final price by combining basePrice with suffix
                 val finalPrice = if (plan.suffix.isNotEmpty()) {
                     val basePriceNumber = plan.basePrice.replace(".", "")
-                    val lastThreeDigits = basePriceNumber.takeLast(3)
-                    val priceWithoutLastThree = basePriceNumber.dropLast(3)
-                    val formattedPrice = "${priceWithoutLastThree}.${plan.suffix}"
+                    // Format with Indonesian thousand separators
+                    val priceWithoutSuffix = basePriceNumber.dropLast(3)
+                    val formattedPrice = when {
+                        priceWithoutSuffix.length > 6 -> {
+                            // For millions (e.g., 1.000.000)
+                            "${priceWithoutSuffix[0]}.${priceWithoutSuffix.substring(1, 4)}.${priceWithoutSuffix.substring(4)}.${plan.suffix}"
+                        }
+                        priceWithoutSuffix.length > 3 -> {
+                            // For thousands (e.g., 100.000)
+                            "${priceWithoutSuffix.substring(0, priceWithoutSuffix.length - 3)}.${priceWithoutSuffix.substring(priceWithoutSuffix.length - 3)}.${plan.suffix}"
+                        }
+                        else -> {
+                            // For smaller numbers
+                            "$priceWithoutSuffix.${plan.suffix}"
+                        }
+                    }
                     "Rp $formattedPrice"
                 } else {
-                    "Rp ${plan.basePrice}"
+                    // Format without suffix
+                    val formatted = when {
+                        plan.basePrice.length > 6 -> {
+                            // For millions
+                            "${plan.basePrice[0]}.${plan.basePrice.substring(1, 4)}.${plan.basePrice.substring(4)}"
+                        }
+                        plan.basePrice.length > 3 -> {
+                            // For thousands
+                            "${plan.basePrice.substring(0, plan.basePrice.length - 3)}.${plan.basePrice.substring(plan.basePrice.length - 3)}"
+                        }
+                        else -> plan.basePrice
+                    }
+                    "Rp $formatted"
                 }
                 
                 Text(
@@ -282,22 +368,6 @@ fun PlanCard(plan: SubscriptionPlan, isSelected: Boolean, onSelect: () -> Unit) 
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
-            }
-
-            if (isSelected) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Surface(
-                    color = MaterialTheme.colorScheme.primary,
-                    shape = MaterialTheme.shapes.small
-                ) {
-                    Text(
-                        text = "Terpilih",
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
             }
         }
     }

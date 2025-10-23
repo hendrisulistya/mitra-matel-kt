@@ -1,7 +1,10 @@
 package app.mitra.matel.ui.screens
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -13,11 +16,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import app.mitra.matel.BuildConfig
+import app.mitra.matel.ui.theme.Purple40
 
 @Composable
-fun AboutContent() {
+fun AboutContent(
+    onTermsClick: () -> Unit = {},
+    onPrivacyClick: () -> Unit = {}
+) {
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Card(
@@ -41,9 +51,9 @@ fun AboutContent() {
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "Version 0.0.000+production (build)",
+                    text = "v${BuildConfig.VERSION_NAME}_${BuildConfig.BUILD_NUMBER}+${if (BuildConfig.IS_PRODUCTION) "prod" else "dev"}",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = Purple40.copy(alpha = 0.8f)
                 )
             }
         }
@@ -67,21 +77,71 @@ fun AboutContent() {
             }
         }
 
+
+
+        // Terms of Service Card
         Card(
             modifier = Modifier.fillMaxWidth(),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "Fitur Utama",
+                    text = "Syarat dan Ketentuan",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                FeatureItem(Icons.Default.Search, "Pencarian data kendaraan real-time")
-                FeatureItem(Icons.Default.Star, "Manajemen data kendaraan pribadi")
-                FeatureItem(Icons.Default.DateRange, "Riwayat pencarian lengkap")
-                FeatureItem(Icons.Default.ShoppingCart, "Sistem pembayaran terintegrasi")
+                Text(
+                    text = "Dengan menggunakan aplikasi Mitra Matel, Anda menyetujui syarat dan ketentuan yang berlaku. Silakan baca selengkapnya untuk informasi lebih lanjut.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Justify
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = onTermsClick,
+                    colors = ButtonDefaults.buttonColors(containerColor = Purple40)
+                ) {
+                    Icon(
+                        Icons.Default.Info,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Baca Syarat dan Ketentuan")
+                }
+            }
+        }
+
+        // Privacy Policy Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text(
+                    text = "Kebijakan Privasi",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = "Kami menghargai privasi Anda. Kebijakan privasi kami menjelaskan bagaimana kami mengumpulkan, menggunakan, dan melindungi informasi pribadi Anda.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Justify
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = onPrivacyClick,
+                    colors = ButtonDefaults.buttonColors(containerColor = Purple40)
+                ) {
+                    Icon(
+                        Icons.Default.Lock,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Baca Kebijakan Privasi")
+                }
             }
         }
 
@@ -96,7 +156,7 @@ fun AboutContent() {
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                ContactItem(Icons.Default.Email, "support@mitramatel.com")
+                ContactItem(Icons.Default.Email, "support@mitra-matel.com")
                 ContactItem(Icons.Default.Phone, "+62 21 1234 5678")
                 ContactItem(Icons.Default.Place, "Jakarta, Indonesia")
             }

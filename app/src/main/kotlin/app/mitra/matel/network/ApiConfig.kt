@@ -53,8 +53,7 @@ object ApiConfig {
         const val DETAIL_VEHICLE = "/private/vehicle/detail/:id"
         const val UPDATE_VEHICLE = "/private/vehicle/update"
         const val SEARCH_HISTORY = "/history/search"
-        const val PAYMENT_PLANS = "/payment/plans"
-        const val PAYMENT_HISTORY = "/payment/history"
+        const val PAYMENT_HISTORY = "/private/user/app/payment"
         const val VEHICLES_COUNT = "/public/vehicles/count"
     }
     

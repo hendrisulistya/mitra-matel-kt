@@ -199,7 +199,7 @@ fun SidebarMenu(
                         color = Purple40
                     )
                     Text(
-                        text = "v${BuildConfig.VERSION_NAME}-${BuildConfig.BUILD_NUMBER}+${if (BuildConfig.IS_PRODUCTION) "prod" else "dev"}",
+                        text = "v${BuildConfig.VERSION_NAME}_${BuildConfig.BUILD_NUMBER}+${if (BuildConfig.IS_PRODUCTION) "prod" else "dev"}",
                         style = MaterialTheme.typography.labelSmall,
                         color = Purple40.copy(alpha = 0.6f)
                     )

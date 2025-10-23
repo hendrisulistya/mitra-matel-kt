@@ -134,6 +134,56 @@ data class SimpleErrorResponse(
     val error: String
 )
 
+@Serializable
+data class PaymentData(
+    @SerialName("sender_name") val senderName: String? = null,
+    @SerialName("verified_at") val verifiedAt: String? = null,
+    @SerialName("verified_by") val verifiedBy: String? = null,
+    @SerialName("sender_phone") val senderPhone: String? = null,
+    @SerialName("transfer_date") val transferDate: String? = null,
+    @SerialName("transfer_note") val transferNote: String? = null,
+    @SerialName("sender_address") val senderAddress: String? = null,
+    @SerialName("transfer_amount") val transferAmount: Int? = null,
+    @SerialName("receiver_address") val receiverAddress: String? = null,
+    @SerialName("reference_number") val referenceNumber: String? = null,
+    @SerialName("sender_bank_code") val senderBankCode: String? = null,
+    @SerialName("sender_bank_name") val senderBankName: String? = null,
+    @SerialName("proof_of_transfer") val proofOfTransfer: String? = null,
+    @SerialName("proof_uploaded_at") val proofUploadedAt: String? = null,
+    @SerialName("receiver_bank_code") val receiverBankCode: String? = null,
+    @SerialName("receiver_bank_name") val receiverBankName: String? = null,
+    @SerialName("verification_notes") val verificationNotes: String? = null,
+    @SerialName("verification_status") val verificationStatus: String? = null,
+    @SerialName("receiver_account_name") val receiverAccountName: String? = null,
+    @SerialName("sender_account_number") val senderAccountNumber: String? = null,
+    @SerialName("receiver_account_number") val receiverAccountNumber: String? = null,
+    @SerialName("trial_days") val trialDays: Int? = null,
+    @SerialName("activated_at") val activatedAt: String? = null,
+    @SerialName("activated_by") val activatedBy: String? = null
+)
+
+@Serializable
+data class PaymentHistoryItem(
+    val id: String,
+    @SerialName("subscription_id") val subscriptionId: String,
+    @SerialName("order_id") val orderId: String,
+    val amount: Int,
+    val currency: String,
+    val status: String,
+    @SerialName("payment_method") val paymentMethod: String,
+    @SerialName("payment_data") val paymentData: PaymentData,
+    @SerialName("paid_at") val paidAt: String,
+    @SerialName("created_at") val createdAt: String,
+    @SerialName("updated_at") val updatedAt: String,
+    @SerialName("subscription_plan") val subscriptionPlan: String,
+    @SerialName("subscription_days") val subscriptionDays: Int,
+    @SerialName("subscription_status") val subscriptionStatus: String,
+    @SerialName("subscription_start") val subscriptionStart: String,
+    @SerialName("subscription_end") val subscriptionEnd: String
+)
+
+typealias PaymentHistoryResponse = List<PaymentHistoryItem>
+
 class DeviceConflictException(
     val data: DeviceConflictResponse
 ) : Exception(data.message ?: "Device conflict detected")

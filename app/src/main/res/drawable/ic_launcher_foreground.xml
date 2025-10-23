@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Background circle -->
+    <path
+        android:fillColor="#1565C0"
+        android:pathData="M54,54m-32,0a32,32 0,1 1,64 0a32,32 0,1 1,-64 0"/>
+    
+    <!-- MMI Logo Design -->
+    <group android:scaleX="0.7"
+        android:scaleY="0.7"
+        android:pivotX="54"
+        android:pivotY="54">
+        
+        <!-- Letter M (First) -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M30,35 L30,73 L34,73 L34,45 L42,65 L45,65 L53,45 L53,73 L57,73 L57,35 L51,35 L43.5,58 L35.5,35 Z"/>
+        
+        <!-- Letter M (Second) -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M62,35 L62,73 L66,73 L66,45 L74,65 L77,65 L85,45 L85,73 L89,73 L89,35 L83,35 L75.5,58 L67.5,35 Z"/>
+        
+        <!-- Letter I -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M94,35 L94,39 L98,39 L98,69 L94,69 L94,73 L108,73 L108,69 L104,69 L104,39 L108,39 L108,35 Z"/>
+        
+        <!-- Decorative underline -->
+        <path
+            android:fillColor="#FFD54F"
+            android:pathData="M30,76 L108,76 L108,79 L30,79 Z"/>
+    </group>
+</vector>

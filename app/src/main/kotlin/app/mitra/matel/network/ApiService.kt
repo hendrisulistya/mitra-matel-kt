@@ -357,6 +357,30 @@ class ApiService(
             Result.failure(e)
         }
     }
+
+    suspend fun getPaymentHistory(): Result<PaymentHistoryResponse> {
+        return try {
+            // Ensure we have a valid token
+            val token = sessionManager.getToken()
+            if (token == null) {
+                return Result.failure(Exception("No authentication token available"))
+            }
+            
+            // Ensure HttpClient has the latest token
+            HttpClientFactory.setAuthToken(token)
+
+            val response = client.get(ApiConfig.Endpoints.PAYMENT_HISTORY)
+            
+            if (response.status.isSuccess()) {
+                val paymentHistoryResponse: PaymentHistoryResponse = response.body()
+                Result.success(paymentHistoryResponse)
+            } else {
+                Result.failure(Exception("Failed to get payment history: ${response.status.description}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
     
     /**
      * Update Device Location
