@@ -81,7 +81,7 @@ fun DashboardScreen(
     var isSidebarVisible by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showAnnouncement by remember { mutableStateOf(!sessionManager.isAnnouncementDismissed()) }
-    var keyboardLayout by remember { mutableStateOf(KeyboardLayout.QWERTY) }
+    var keyboardLayout by remember { mutableStateOf(KeyboardLayout.QWERTY1) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -111,8 +111,9 @@ fun DashboardScreen(
                     IconButton(
                         onClick = {
                             keyboardLayout = when (keyboardLayout) {
-                                KeyboardLayout.NUMERIC -> KeyboardLayout.QWERTY
-                                KeyboardLayout.QWERTY -> KeyboardLayout.NUMERIC
+                                KeyboardLayout.NUMERIC -> KeyboardLayout.QWERTY1
+                                KeyboardLayout.QWERTY1 -> KeyboardLayout.QWERTY2
+                                KeyboardLayout.QWERTY2 -> KeyboardLayout.NUMERIC
                             }
                         }
                     ) {
@@ -144,17 +145,23 @@ fun DashboardScreen(
                     .fillMaxSize()
                     .weight(1f)
             ) {
-                // 1. SearchResultList - 39% height (increased from 37%)
+                // Calculate dynamic weights based on keyboard layout
+                val keyboardHeightRatio = KeyboardLayouts.getKeyboardHeightRatio(keyboardLayout)
+                val baseKeyboardWeight = 0.48f
+                val keyboardWeight = baseKeyboardWeight * keyboardHeightRatio
+                val resultListWeight = 0.39f + (baseKeyboardWeight - keyboardWeight)
+                
+                // 1. SearchResultList - dynamic height (adjusts based on keyboard)
                 SearchResultList(
                     results = searchUiState.results,
                     error = searchUiState.error,
                     onVehicleClick = onNavigateToVehicleDetail,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(0.39f)
+                        .weight(resultListWeight)
                 )
 
-                // 2. SearchForm - 13% height (includes internal spacing)
+                // 2. SearchForm - 13% height (constant)
                 SearchForm(
                     searchText = searchUiState.searchText,
                     selectedSearchType = searchUiState.searchType,
@@ -170,8 +177,7 @@ fun DashboardScreen(
                         .weight(0.13f)
                 )
 
-                // 3. SearchKeyboard - 48% height (reduced from 50%)
-                // In DashboardScreen, modify the SearchKeyboard handler:
+                // 3. SearchKeyboard - dynamic height based on layout
                 SearchKeyboard(
                     keyboardLayout = keyboardLayout,
                     onKeyClick = { key ->
@@ -188,7 +194,7 @@ fun DashboardScreen(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(0.48f)
+                        .weight(keyboardWeight)
                 )
             }
         }

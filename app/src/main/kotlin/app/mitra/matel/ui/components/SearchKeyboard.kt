@@ -21,7 +21,8 @@ import androidx.compose.ui.unit.em
 
 enum class KeyboardLayout {
     NUMERIC,
-    QWERTY
+    QWERTY1,
+    QWERTY2
 }
 
 enum class KeyType {
@@ -37,57 +38,122 @@ data class KeyboardKey(
     val fontSize: Int = 32
 )
 
+data class KeyboardRow(
+    val keys: List<KeyboardKey>,
+    val weight: Float = 1f
+)
+
 data class KeyboardLayoutDefinition(
-    val rows: List<List<KeyboardKey>>
+    val rows: List<KeyboardRow>
 )
 
 object KeyboardLayouts {
+    // Helper function to calculate relative keyboard height
+    fun getKeyboardHeightRatio(layout: KeyboardLayout): Float {
+        return when (layout) {
+            KeyboardLayout.NUMERIC -> 1.0f // 4 rows, standard height
+            KeyboardLayout.QWERTY1 -> 0.88f // 6 rows, 30% reduction from original 1.26f
+            KeyboardLayout.QWERTY2 -> 0.8f // 4 rows, 20% shorter
+        }
+    }
+    
     val NUMERIC = KeyboardLayoutDefinition(
         rows = listOf(
-            listOf(
+            KeyboardRow(listOf(
                 KeyboardKey("1", fontSize = 48),
                 KeyboardKey("2", fontSize = 48),
                 KeyboardKey("3", fontSize = 48)
-            ),
-            listOf(
+            )),
+            KeyboardRow(listOf(
                 KeyboardKey("4", fontSize = 48),
                 KeyboardKey("5", fontSize = 48),
                 KeyboardKey("6", fontSize = 48)
-            ),
-            listOf(
+            )),
+            KeyboardRow(listOf(
                 KeyboardKey("7", fontSize = 48),
                 KeyboardKey("8", fontSize = 48),
                 KeyboardKey("9", fontSize = 48)
-            ),
-            listOf(
+            )),
+            KeyboardRow(listOf(
                 KeyboardKey("*", fontSize = 48),
                 KeyboardKey("0", fontSize = 48),
                 KeyboardKey("#", fontSize = 48)
-            )
+            ))
         )
     )
     
-    val QWERTY = KeyboardLayoutDefinition(
+    val QWERTY1 = KeyboardLayoutDefinition(
         rows = listOf(
-            listOf(
-                KeyboardKey("1", fontSize = 48),
-                KeyboardKey("2", fontSize = 48),
-                KeyboardKey("3", fontSize = 48),
-                KeyboardKey("⌫", KeyType.BACKSPACE, fontSize = 48)
-            ),
-            listOf(
-                KeyboardKey("4", fontSize = 48),
-                KeyboardKey("5", fontSize = 48),
-                KeyboardKey("6", fontSize = 48),
-                KeyboardKey("⌫", KeyType.BACKSPACE, fontSize = 48)
-            ),
-            listOf(
-                KeyboardKey("7", fontSize = 48),
-                KeyboardKey("8", fontSize = 48),
-                KeyboardKey("9", fontSize = 48),
-                KeyboardKey("0", fontSize = 48)
-            ),
-            listOf(
+            KeyboardRow(listOf(
+                KeyboardKey("1", fontSize = 36),
+                KeyboardKey("2", fontSize = 36),
+                KeyboardKey("3", fontSize = 36),
+                KeyboardKey("⌫", KeyType.BACKSPACE, fontSize = 36)
+            ), weight = 0.4f),
+            KeyboardRow(listOf(
+                KeyboardKey("4", fontSize = 36),
+                KeyboardKey("5", fontSize = 36),
+                KeyboardKey("6", fontSize = 36),
+                KeyboardKey("⌫", KeyType.BACKSPACE, fontSize = 36)
+            ), weight = 0.4f),
+            KeyboardRow(listOf(
+                KeyboardKey("7", fontSize = 36),
+                KeyboardKey("8", fontSize = 36),
+                KeyboardKey("9", fontSize = 36),
+                KeyboardKey("0", fontSize = 36)
+            ), weight = 0.4f),
+            KeyboardRow(listOf(
+                KeyboardKey("Q", fontSize = 28),
+                KeyboardKey("W", fontSize = 28),
+                KeyboardKey("E", fontSize = 28),
+                KeyboardKey("R", fontSize = 28),
+                KeyboardKey("T", fontSize = 28),
+                KeyboardKey("Y", fontSize = 28),
+                KeyboardKey("U", fontSize = 28),
+                KeyboardKey("I", fontSize = 28),
+                KeyboardKey("O", fontSize = 28),
+                KeyboardKey("P", fontSize = 28)
+            ), weight = 0.4f),
+            KeyboardRow(listOf(
+                KeyboardKey("A", fontSize = 28),
+                KeyboardKey("S", fontSize = 28),
+                KeyboardKey("D", fontSize = 28),
+                KeyboardKey("F", fontSize = 28),
+                KeyboardKey("G", fontSize = 28),
+                KeyboardKey("H", fontSize = 28),
+                KeyboardKey("J", fontSize = 28),
+                KeyboardKey("K", fontSize = 28),
+                KeyboardKey("L", fontSize = 28)
+            ), weight = 0.4f),
+            KeyboardRow(listOf(
+                KeyboardKey("⌫", KeyType.BACKSPACE, fontSize = 28),
+                KeyboardKey("Z", fontSize = 28),
+                KeyboardKey("X", fontSize = 28),
+                KeyboardKey("C", fontSize = 28),
+                KeyboardKey("V", fontSize = 28),
+                KeyboardKey("B", fontSize = 28),
+                KeyboardKey("N", fontSize = 28),
+                KeyboardKey("M", fontSize = 28),
+                KeyboardKey("⌫", KeyType.BACKSPACE, fontSize = 28)
+            ), weight = 0.4f)
+        )
+    )
+    
+    val QWERTY2 = KeyboardLayoutDefinition(
+        rows = listOf(
+            KeyboardRow(listOf(
+                KeyboardKey("1"),
+                KeyboardKey("2"),
+                KeyboardKey("3"),
+                KeyboardKey("4"),
+                KeyboardKey("5"),
+                KeyboardKey("6"),
+                KeyboardKey("7"),
+                KeyboardKey("8"),
+                KeyboardKey("9"),
+                KeyboardKey("0")
+            ), weight = 0.7f),
+            KeyboardRow(listOf(
                 KeyboardKey("Q"),
                 KeyboardKey("W"),
                 KeyboardKey("E"),
@@ -98,8 +164,8 @@ object KeyboardLayouts {
                 KeyboardKey("I"),
                 KeyboardKey("O"),
                 KeyboardKey("P")
-            ),
-            listOf(
+            ), weight = 0.7f),
+            KeyboardRow(listOf(
                 KeyboardKey("A"),
                 KeyboardKey("S"),
                 KeyboardKey("D"),
@@ -109,8 +175,8 @@ object KeyboardLayouts {
                 KeyboardKey("J"),
                 KeyboardKey("K"),
                 KeyboardKey("L")
-            ),
-            listOf(
+            ), weight = 0.7f),
+            KeyboardRow(listOf(
                 KeyboardKey("⌫", KeyType.BACKSPACE),
                 KeyboardKey("Z"),
                 KeyboardKey("X"),
@@ -120,20 +186,21 @@ object KeyboardLayouts {
                 KeyboardKey("N"),
                 KeyboardKey("M"),
                 KeyboardKey("⌫", KeyType.BACKSPACE)
-            )
+            ), weight = 1.0f)
         )
     )
 }
 
 @Composable
 fun SearchKeyboard(
-    keyboardLayout: KeyboardLayout = KeyboardLayout.QWERTY,
+    keyboardLayout: KeyboardLayout = KeyboardLayout.QWERTY1,
     onKeyClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val layoutDefinition = when (keyboardLayout) {
         KeyboardLayout.NUMERIC -> KeyboardLayouts.NUMERIC
-        KeyboardLayout.QWERTY -> KeyboardLayouts.QWERTY
+        KeyboardLayout.QWERTY1 -> KeyboardLayouts.QWERTY1
+        KeyboardLayout.QWERTY2 -> KeyboardLayouts.QWERTY2
     }
     
     Card(
@@ -159,9 +226,9 @@ fun GenericKeyboard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    .weight(row.weight)
             ) {
-                row.forEach { key ->
+                row.keys.forEach { key ->
                     KeyboardButton(
                         key = key,
                         onKeyClick = onKeyClick,
@@ -231,6 +298,18 @@ fun NumericKeyboardPreview() {
     MaterialTheme {
         SearchKeyboard(
             keyboardLayout = KeyboardLayout.NUMERIC,
+            onKeyClick = {},
+            modifier = Modifier.height(300.dp)
+        )
+    }
+}
+
+@Preview
+@Composable
+fun Qwerty2KeyboardPreview() {
+    MaterialTheme {
+        SearchKeyboard(
+            keyboardLayout = KeyboardLayout.QWERTY2,
             onKeyClick = {},
             modifier = Modifier.height(300.dp)
         )
