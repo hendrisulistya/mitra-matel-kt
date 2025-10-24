@@ -30,27 +30,25 @@ data class LoginResponse(
 
 @Serializable
 data class RegisterRequest(
-    val fullName: String,
+    @SerialName("full_name") val fullName: String,
     val email: String,
-    val phoneNumber: String,
-    val password: String,
-    val confirmPassword: String
+    @SerialName("telephone") val phoneNumber: String,
+    val password: String
 )
 
 @Serializable
 data class RegisterResponse(
-    val success: Boolean,
     val message: String,
-    val data: User? = null
+    val user: RegisteredUser? = null
 )
 
 @Serializable
-data class User(
+data class RegisteredUser(
     val id: String,
-    val fullName: String,
+    @SerialName("full_name") val fullName: String,
     val email: String,
-    val phoneNumber: String,
-    val tier: String = "Basic"
+    val telephone: String,
+    val tier: String = "regular"
 )
 
 @Serializable

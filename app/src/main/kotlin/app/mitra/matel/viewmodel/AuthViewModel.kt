@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import app.mitra.matel.network.models.DeviceConflictException
 import app.mitra.matel.network.models.DeviceConflictResponse
+import app.mitra.matel.network.models.RegisterResponse
 
 sealed class AuthState {
     object Idle : AuthState()
@@ -21,6 +22,13 @@ sealed class AuthState {
     data class Conflict(val data: DeviceConflictResponse) : AuthState()
 }
 
+sealed class RegisterState {
+    object Idle : RegisterState()
+    object Loading : RegisterState()
+    data class Success(val response: RegisterResponse) : RegisterState()
+    data class Error(val message: String) : RegisterState()
+}
+
 class AuthViewModel(private val context: Context) : ViewModel() {
 
     private val apiService = ApiService(context = context)
@@ -28,6 +36,9 @@ class AuthViewModel(private val context: Context) : ViewModel() {
 
     private val _loginState = MutableStateFlow<AuthState>(AuthState.Idle)
     val loginState: StateFlow<AuthState> = _loginState.asStateFlow()
+
+    private val _registerState = MutableStateFlow<RegisterState>(RegisterState.Idle)
+    val registerState: StateFlow<RegisterState> = _registerState.asStateFlow()
 
     /**
      * Check if user is already logged in
@@ -108,5 +119,63 @@ class AuthViewModel(private val context: Context) : ViewModel() {
                 )
             }
         }
+    }
+
+    /**
+     * Register new user
+     */
+    fun register(
+        fullName: String,
+        email: String,
+        phoneNumber: String,
+        password: String,
+        confirmPassword: String
+    ) {
+        viewModelScope.launch {
+            // Validate inputs
+            if (fullName.isBlank()) {
+                _registerState.value = RegisterState.Error("Nama lengkap tidak boleh kosong")
+                return@launch
+            }
+            
+            if (email.isBlank() || !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                _registerState.value = RegisterState.Error("Email tidak valid")
+                return@launch
+            }
+            
+            if (phoneNumber.isBlank()) {
+                _registerState.value = RegisterState.Error("Nomor telepon tidak boleh kosong")
+                return@launch
+            }
+            
+            if (password.length < 6) {
+                _registerState.value = RegisterState.Error("Password minimal 6 karakter")
+                return@launch
+            }
+            
+            if (password != confirmPassword) {
+                _registerState.value = RegisterState.Error("Password dan konfirmasi password tidak sama")
+                return@launch
+            }
+
+            _registerState.value = RegisterState.Loading
+
+            val result = apiService.registerUser(fullName, email, phoneNumber, password)
+
+            result.onSuccess { response ->
+                _registerState.value = RegisterState.Success(response)
+            }.onFailure { exception ->
+                _registerState.value = RegisterState.Error(
+                    exception.message ?: "Registrasi gagal"
+                )
+            }
+        }
+    }
+
+    /**
+     * Reset register state
+     */
+    fun resetRegisterState() {
+        _registerState.value = RegisterState.Idle
     }
 }

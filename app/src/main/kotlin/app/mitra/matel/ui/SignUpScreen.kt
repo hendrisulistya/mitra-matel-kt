@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -27,12 +28,19 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.mitra.matel.R
+import app.mitra.matel.viewmodel.AuthViewModel
+import app.mitra.matel.viewmodel.RegisterState
 
 @Composable
 fun SignUpScreen(
     onBack: () -> Unit = {},
-    onNavigateToSignIn: () -> Unit = {}
+    onNavigateToSignIn: () -> Unit = {},
+    onSignUpSuccess: () -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val viewModel = remember { AuthViewModel(context) }
+    val registerState by viewModel.registerState.collectAsState()
+
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var phoneNumber by remember { mutableStateOf("") }
@@ -40,6 +48,20 @@ fun SignUpScreen(
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Handle registration state changes
+    LaunchedEffect(registerState) {
+        when (val state = registerState) {
+            is RegisterState.Success -> {
+                onSignUpSuccess()
+            }
+            is RegisterState.Error -> {
+                errorMessage = state.message
+            }
+            else -> {}
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -122,8 +144,8 @@ fun SignUpScreen(
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
-                label = { Text("Password", fontSize = 12.sp) },
-                placeholder = { Text("Password", fontSize = 12.sp) },
+                label = { Text("Kata Sandi", fontSize = 12.sp) },
+                placeholder = { Text("Kata sandi", fontSize = 12.sp) },
                 trailingIcon = {
                     TextButton(onClick = { passwordVisible = !passwordVisible }) {
                         Text(if (passwordVisible) "Hide" else "Show", fontSize = 10.sp)
@@ -140,8 +162,8 @@ fun SignUpScreen(
             OutlinedTextField(
                 value = confirmPassword,
                 onValueChange = { confirmPassword = it },
-                label = { Text("Konfirmasi Password", fontSize = 12.sp) },
-                placeholder = { Text("Konfirmasi password", fontSize = 12.sp) },
+                label = { Text("Konfirmasi Kata Sandi", fontSize = 12.sp) },
+                placeholder = { Text("Konfirmasi kata sandi", fontSize = 12.sp) },
                 trailingIcon = {
                     TextButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
                         Text(if (confirmPasswordVisible) "Hide" else "Show", fontSize = 10.sp)
@@ -161,22 +183,66 @@ fun SignUpScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Error message
+            errorMessage?.let {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Text(
+                        text = it,
+                        modifier = Modifier.padding(12.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+
             // Daftar Button
             Button(
                 onClick = {
-                    // TODO: Implement registration logic
-                    onBack()
+                    errorMessage = null
+                    if (fullName.isNotBlank() && email.isNotBlank() && 
+                        phoneNumber.isNotBlank() && password.isNotBlank() && 
+                        confirmPassword.isNotBlank()) {
+                        viewModel.register(fullName, email, phoneNumber, password, confirmPassword)
+                    } else {
+                        errorMessage = "Semua field harus diisi"
+                    }
                 },
+                enabled = registerState !is RegisterState.Loading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
             ) {
-                Text(
-                    text = "Daftar",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
+                if (registerState is RegisterState.Loading) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
+                        )
+                        Text(
+                            text = "Mendaftar...",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    }
+                } else {
+                    Text(
+                        text = "Daftar",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                }
             }
 
             // Sign In link
@@ -208,12 +274,45 @@ fun SignUpScreen(
             }
         }
     }
+
+    // Success Dialog
+    if (registerState is RegisterState.Success) {
+        AlertDialog(
+            onDismissRequest = { 
+                viewModel.resetRegisterState()
+                onNavigateToSignIn()
+            },
+            title = {
+                Text(
+                    text = "Registrasi Berhasil",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = "Akun Anda telah berhasil dibuat. Silakan masuk dengan email dan password yang telah Anda daftarkan.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.resetRegisterState()
+                        onNavigateToSignIn()
+                    }
+                ) {
+                    Text("Masuk Sekarang")
+                }
+            }
+        )
+    }
 }
 
 @Preview
 @Composable
 private fun SignUpPreview() {
     MaterialTheme {
-        SignUpScreen(onBack = {}, onNavigateToSignIn = {})
+        SignUpScreen(onBack = {}, onNavigateToSignIn = {}, onSignUpSuccess = {})
     }
 }

@@ -24,144 +24,151 @@ enum class KeyboardLayout {
     QWERTY
 }
 
+enum class KeyType {
+    NORMAL,
+    BACKSPACE,
+    SPECIAL
+}
+
+data class KeyboardKey(
+    val text: String,
+    val type: KeyType = KeyType.NORMAL,
+    val weight: Float = 1f,
+    val fontSize: Int = 32
+)
+
+data class KeyboardLayoutDefinition(
+    val rows: List<List<KeyboardKey>>
+)
+
+object KeyboardLayouts {
+    val NUMERIC = KeyboardLayoutDefinition(
+        rows = listOf(
+            listOf(
+                KeyboardKey("1", fontSize = 48),
+                KeyboardKey("2", fontSize = 48),
+                KeyboardKey("3", fontSize = 48)
+            ),
+            listOf(
+                KeyboardKey("4", fontSize = 48),
+                KeyboardKey("5", fontSize = 48),
+                KeyboardKey("6", fontSize = 48)
+            ),
+            listOf(
+                KeyboardKey("7", fontSize = 48),
+                KeyboardKey("8", fontSize = 48),
+                KeyboardKey("9", fontSize = 48)
+            ),
+            listOf(
+                KeyboardKey("*", fontSize = 48),
+                KeyboardKey("0", fontSize = 48),
+                KeyboardKey("#", fontSize = 48)
+            )
+        )
+    )
+    
+    val QWERTY = KeyboardLayoutDefinition(
+        rows = listOf(
+            listOf(
+                KeyboardKey("1", fontSize = 48),
+                KeyboardKey("2", fontSize = 48),
+                KeyboardKey("3", fontSize = 48),
+                KeyboardKey("⌫", KeyType.BACKSPACE, fontSize = 48)
+            ),
+            listOf(
+                KeyboardKey("4", fontSize = 48),
+                KeyboardKey("5", fontSize = 48),
+                KeyboardKey("6", fontSize = 48),
+                KeyboardKey("⌫", KeyType.BACKSPACE, fontSize = 48)
+            ),
+            listOf(
+                KeyboardKey("7", fontSize = 48),
+                KeyboardKey("8", fontSize = 48),
+                KeyboardKey("9", fontSize = 48),
+                KeyboardKey("0", fontSize = 48)
+            ),
+            listOf(
+                KeyboardKey("Q"),
+                KeyboardKey("W"),
+                KeyboardKey("E"),
+                KeyboardKey("R"),
+                KeyboardKey("T"),
+                KeyboardKey("Y"),
+                KeyboardKey("U"),
+                KeyboardKey("I"),
+                KeyboardKey("O"),
+                KeyboardKey("P")
+            ),
+            listOf(
+                KeyboardKey("A"),
+                KeyboardKey("S"),
+                KeyboardKey("D"),
+                KeyboardKey("F"),
+                KeyboardKey("G"),
+                KeyboardKey("H"),
+                KeyboardKey("J"),
+                KeyboardKey("K"),
+                KeyboardKey("L")
+            ),
+            listOf(
+                KeyboardKey("⌫", KeyType.BACKSPACE),
+                KeyboardKey("Z"),
+                KeyboardKey("X"),
+                KeyboardKey("C"),
+                KeyboardKey("V"),
+                KeyboardKey("B"),
+                KeyboardKey("N"),
+                KeyboardKey("M"),
+                KeyboardKey("⌫", KeyType.BACKSPACE)
+            )
+        )
+    )
+}
+
 @Composable
 fun SearchKeyboard(
     keyboardLayout: KeyboardLayout = KeyboardLayout.QWERTY,
     onKeyClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val layoutDefinition = when (keyboardLayout) {
+        KeyboardLayout.NUMERIC -> KeyboardLayouts.NUMERIC
+        KeyboardLayout.QWERTY -> KeyboardLayouts.QWERTY
+    }
+    
     Card(
         modifier = modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        when (keyboardLayout) {
-            KeyboardLayout.NUMERIC -> NumericKeyboard(onKeyClick)
-            KeyboardLayout.QWERTY -> QwertyKeyboard(onKeyClick)
-        }
+        GenericKeyboard(
+            layoutDefinition = layoutDefinition,
+            onKeyClick = onKeyClick
+        )
     }
 }
 
 @Composable
-fun NumericKeyboard(onKeyClick: (String) -> Unit) {
+fun GenericKeyboard(
+    layoutDefinition: KeyboardLayoutDefinition,
+    onKeyClick: (String) -> Unit
+) {
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
-        // First row: 1, 2, 3
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        ) {
-            listOf("1", "2", "3").forEach { key ->
-                Button(
-                    onClick = { onKeyClick(key) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .border(1.dp, androidx.compose.ui.graphics.Color.Black),
-                    shape = RoundedCornerShape(0.dp),
-                    contentPadding = PaddingValues(0.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+        layoutDefinition.rows.forEach { row ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                row.forEach { key ->
+                    KeyboardButton(
+                        key = key,
+                        onKeyClick = onKeyClick,
+                        modifier = Modifier
+                            .weight(key.weight)
+                            .fillMaxHeight()
                     )
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = key, fontSize = 48.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-
-        // Second row: 4, 5, 6
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        ) {
-            listOf("4", "5", "6").forEach { key ->
-                Button(
-                    onClick = { onKeyClick(key) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .border(1.dp, androidx.compose.ui.graphics.Color.Black),
-                    shape = RoundedCornerShape(0.dp),
-                    contentPadding = PaddingValues(0.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = key, fontSize = 48.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-
-        // Third row: 7, 8, 9
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        ) {
-            listOf("7", "8", "9").forEach { key ->
-                Button(
-                    onClick = { onKeyClick(key) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .border(1.dp, androidx.compose.ui.graphics.Color.Black),
-                    shape = RoundedCornerShape(0.dp),
-                    contentPadding = PaddingValues(0.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = key, fontSize = 48.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-
-        // Fourth row: *, 0, #
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        ) {
-            listOf("*", "0", "#").forEach { key ->
-                Button(
-                    onClick = { onKeyClick(key) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .border(1.dp, androidx.compose.ui.graphics.Color.Black),
-                    shape = RoundedCornerShape(0.dp),
-                    contentPadding = PaddingValues(0.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = key, fontSize = 48.sp, fontWeight = FontWeight.Bold)
-                    }
                 }
             }
         }
@@ -169,282 +176,40 @@ fun NumericKeyboard(onKeyClick: (String) -> Unit) {
 }
 
 @Composable
-fun QwertyKeyboard(onKeyClick: (String) -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize()
+fun KeyboardButton(
+    key: KeyboardKey,
+    onKeyClick: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colors = when (key.type) {
+        KeyType.NORMAL -> ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+        )
+        KeyType.BACKSPACE, KeyType.SPECIAL -> ButtonDefaults.buttonColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+        )
+    }
+    
+    Button(
+        onClick = { onKeyClick(key.text) },
+        modifier = modifier.border(1.dp, androidx.compose.ui.graphics.Color.Black),
+        shape = RoundedCornerShape(0.dp),
+        contentPadding = PaddingValues(0.dp),
+        colors = colors
     ) {
-        // First row: 1, 2, 3, ⌫
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
         ) {
-            listOf("1", "2", "3").forEach { key ->
-                Button(
-                    onClick = { onKeyClick(key) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .border(1.dp, androidx.compose.ui.graphics.Color.Black),
-                    shape = RoundedCornerShape(0.dp),
-                    contentPadding = PaddingValues(0.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = key, fontSize = 48.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-            Button(
-                onClick = { onKeyClick("⌫") },
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .border(1.dp, androidx.compose.ui.graphics.Color.Black),
-                shape = RoundedCornerShape(0.dp),
-                contentPadding = PaddingValues(0.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                )
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = "⌫", fontSize = 48.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-
-        // Second row: 4, 5, 6, ⌫
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        ) {
-            listOf("4", "5", "6").forEach { key ->
-                Button(
-                    onClick = { onKeyClick(key) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .border(1.dp, androidx.compose.ui.graphics.Color.Black),
-                    shape = RoundedCornerShape(0.dp),
-                    contentPadding = PaddingValues(0.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = key, fontSize = 48.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-            Button(
-                onClick = { onKeyClick("⌫") },
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .border(1.dp, androidx.compose.ui.graphics.Color.Black),
-                shape = RoundedCornerShape(0.dp),
-                contentPadding = PaddingValues(0.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                )
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = "⌫", fontSize = 48.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-
-        // Third row: 7, 8, 9, 0
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        ) {
-            listOf("7", "8", "9", "0").forEach { key ->
-                Button(
-                    onClick = { onKeyClick(key) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .border(1.dp, androidx.compose.ui.graphics.Color.Black),
-                    shape = RoundedCornerShape(0.dp),
-                    contentPadding = PaddingValues(0.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = key, fontSize = 48.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-
-        // Fourth row: Q W E R T Y U I O P
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        ) {
-            listOf("Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P").forEach { key ->
-                Button(
-                    onClick = { onKeyClick(key) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .border(1.dp, androidx.compose.ui.graphics.Color.Black),
-                    shape = RoundedCornerShape(0.dp),
-                    contentPadding = PaddingValues(0.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = key,
-                            fontSize = 32.sp,
-                            letterSpacing = 0.em,
-                            textAlign = TextAlign.Center,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-        }
-
-        // Fifth row: A S D F G H J K L
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        ) {
-            listOf("A", "S", "D", "F", "G", "H", "J", "K", "L").forEach { key ->
-                Button(
-                    onClick = { onKeyClick(key) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .border(1.dp, androidx.compose.ui.graphics.Color.Black),
-                    shape = RoundedCornerShape(0.dp),
-                    contentPadding = PaddingValues(0.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = key,
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-        }
-
-        // Sixth row: ⌫ Z X C V B N M ⌫
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        ) {
-            Button(
-                onClick = { onKeyClick("⌫") },
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .border(1.dp, androidx.compose.ui.graphics.Color.Black),
-                shape = RoundedCornerShape(0.dp),
-                contentPadding = PaddingValues(0.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                )
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = "⌫", fontSize = 32.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-            listOf("Z", "X", "C", "V", "B", "N", "M").forEach { key ->
-                Button(
-                    onClick = { onKeyClick(key) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .border(1.dp, androidx.compose.ui.graphics.Color.Black),
-                    shape = RoundedCornerShape(0.dp),
-                    contentPadding = PaddingValues(0.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = key,
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-            Button(
-                onClick = { onKeyClick("⌫") },
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .border(1.dp, androidx.compose.ui.graphics.Color.Black),
-                shape = RoundedCornerShape(0.dp),
-                contentPadding = PaddingValues(0.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                )
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = "⌫", fontSize = 32.sp, fontWeight = FontWeight.Bold)
-                }
-            }
+            Text(
+                text = key.text,
+                fontSize = key.fontSize.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                letterSpacing = 0.em
+            )
         }
     }
 }
@@ -454,6 +219,18 @@ fun QwertyKeyboard(onKeyClick: (String) -> Unit) {
 fun SearchKeyboardPreview() {
     MaterialTheme {
         SearchKeyboard(
+            onKeyClick = {},
+            modifier = Modifier.height(300.dp)
+        )
+    }
+}
+
+@Preview
+@Composable
+fun NumericKeyboardPreview() {
+    MaterialTheme {
+        SearchKeyboard(
+            keyboardLayout = KeyboardLayout.NUMERIC,
             onKeyClick = {},
             modifier = Modifier.height(300.dp)
         )

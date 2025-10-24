@@ -204,7 +204,7 @@ fun SignInScreen(
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = conflict.message ?: "Anda telah login di perangkat lain.",
+                        text = conflict.error ?: conflict.message ?: "Anda telah login di perangkat lain.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -229,11 +229,11 @@ fun SignInScreen(
                                 style = MaterialTheme.typography.titleSmall
                             )
                             Text(
-                                text = conflict.currentDevice.model,
+                                text = conflict.currentDevice.model ?: "Unknown Device",
                                 style = MaterialTheme.typography.bodyMedium
                             )
                             Text(
-                                text = "Login Terakhir: ${conflict.currentDevice.lastLogin}",
+                                text = "Login Terakhir: ${conflict.currentDevice.lastLogin ?: "Unknown"}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

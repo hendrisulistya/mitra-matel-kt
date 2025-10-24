@@ -135,23 +135,44 @@ class ApiService(
         fullName: String,
         email: String,
         phoneNumber: String,
-        password: String,
-        confirmPassword: String
+        password: String
     ): Result<RegisterResponse> {
         return try {
             val response = client.post(ApiConfig.Endpoints.REGISTER) {
-                setBody(RegisterRequest(fullName, email, phoneNumber, password, confirmPassword))
+                setBody(RegisterRequest(fullName, email, phoneNumber, password))
             }
             
             if (response.status.isSuccess()) {
                 val registerResponse: RegisterResponse = response.body()
                 Result.success(registerResponse)
             } else {
-                Result.failure(Exception("Registration failed: ${response.status.description}"))
+                val errorText = try {
+                    val responseText = response.bodyAsText()
+                    // Try to parse JSON and extract error message
+                    try {
+                        val jsonObject = Json.parseToJsonElement(responseText) as JsonObject
+                        jsonObject["error"]?.jsonPrimitive?.content ?: responseText
+                    } catch (jsonException: Exception) {
+                        // If JSON parsing fails, return the raw response
+                        responseText
+                    }
+                } catch (e: Exception) {
+                    response.status.description
+                }
+                Result.failure(Exception(errorText))
             }
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+    
+    suspend fun registerUser(
+        fullName: String,
+        email: String,
+        phoneNumber: String,
+        password: String
+    ): Result<RegisterResponse> {
+        return register(fullName, email, phoneNumber, password)
     }
     
     suspend fun logout(): Result<ApiResponse<Unit>> {
@@ -381,7 +402,7 @@ class ApiService(
             Result.failure(e)
         }
     }
-    
+
     /**
      * Update Device Location
      */
