@@ -29,6 +29,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.painterResource
+import app.mitra.matel.R
 import app.mitra.matel.network.ApiService
 import app.mitra.matel.network.models.ProfileResponse
 import app.mitra.matel.network.models.VehicleCountResponse
@@ -65,8 +67,8 @@ fun SidebarMenu(
         ),
         MenuSection(
             items = listOf(
-                MenuItem("Data Kendaraan Saya", Icons.Default.Star),
-                MenuItem("Input Data Kendaraan", Icons.Default.Add)
+                MenuItem("Data Kendaraan Saya", iconRes = R.drawable.ic_car_vector),
+                MenuItem("Input Data Kendaraan", icon = Icons.Default.Add)
             )
         ),
         MenuSection(
@@ -244,12 +246,21 @@ fun SidebarMenuItem(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Icon(
-                imageVector = item.icon,
-                contentDescription = item.title,
-                modifier = Modifier.size(24.dp), // Larger icons
-                tint = contentColor
-            )
+            if (item.icon != null) {
+                Icon(
+                    imageVector = item.icon,
+                    contentDescription = item.title,
+                    modifier = Modifier.size(24.dp), // Larger icons
+                    tint = contentColor
+                )
+            } else if (item.iconRes != null) {
+                Icon(
+                    painter = painterResource(id = item.iconRes),
+                    contentDescription = item.title,
+                    modifier = Modifier.size(24.dp), // Larger icons
+                    tint = contentColor
+                )
+            }
             
             Text(
                 text = item.title,
@@ -264,7 +275,8 @@ fun SidebarMenuItem(
 
 data class MenuItem(
     val title: String,
-    val icon: ImageVector
+    val icon: ImageVector? = null,
+    val iconRes: Int? = null
 )
 
 data class MenuSection(

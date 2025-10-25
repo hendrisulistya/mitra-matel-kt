@@ -113,7 +113,8 @@ fun DashboardScreen(
                             keyboardLayout = when (keyboardLayout) {
                                 KeyboardLayout.NUMERIC -> KeyboardLayout.QWERTY1
                                 KeyboardLayout.QWERTY1 -> KeyboardLayout.QWERTY2
-                                KeyboardLayout.QWERTY2 -> KeyboardLayout.NUMERIC
+                                KeyboardLayout.QWERTY2 -> KeyboardLayout.QWERTY3
+                                KeyboardLayout.QWERTY3 -> KeyboardLayout.NUMERIC
                             }
                         }
                     ) {
@@ -240,7 +241,11 @@ fun DashboardScreen(
                         "Riwayat Pencarian" -> SearchHistoryContent(
                             onVehicleClick = onNavigateToVehicleDetail
                         )
-                        "Data Kendaraan saya" -> MyVehicleDataContent()
+                        "Data Kendaraan Saya" -> MyVehicleDataContent(
+                            onNavigateToAddVehicle = {
+                                selectedMenuItem = "Input Data Kendaraan"
+                            }
+                        )
                         "Input Data Kendaraan" -> InputVehicleContent(
                             onNavigateBack = onNavigateBack
                         )

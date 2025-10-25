@@ -50,7 +50,7 @@ object ApiConfig {
         const val PROFILE_AVATAR= "/private/user/app/profile/avatar"
         const val DEVICE_LOCATION= "/private/user/app/device/location"
         const val SEARCH_VEHICLE = "/vehicle/search"
-        const val MY_VEHICLES = "/vehicle/my-vehicles"
+        const val MY_VEHICLE_DATA = "/private/user/app/vehicle/data"
         const val ADD_VEHICLE = "/private/user/app/vehicle/add"
         const val DETAIL_VEHICLE = "/private/vehicle/detail/:id"
         const val UPDATE_VEHICLE = "/private/vehicle/update"

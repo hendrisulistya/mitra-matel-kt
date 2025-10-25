@@ -133,6 +133,16 @@ data class SimpleErrorResponse(
 )
 
 @Serializable
+data class MyVehicleDataItem(
+    val id: String,
+    @SerialName("nomor_polisi") val nomorPolisi: String,
+    @SerialName("nomor_rangka") val nomorRangka: String,
+    val isPublic: Boolean
+)
+
+typealias MyVehicleDataResponse = List<MyVehicleDataItem>
+
+@Serializable
 data class PaymentData(
     @SerialName("sender_name") val senderName: String? = null,
     @SerialName("verified_at") val verifiedAt: String? = null,

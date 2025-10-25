@@ -216,6 +216,81 @@ class ApiService(
             Result.failure(e)
         }
     }
+
+    suspend fun getMyVehicleData(): Result<MyVehicleDataResponse> {
+        return try {
+            val token = sessionManager.getToken()
+            if (token == null) {
+                return Result.failure(Exception("No authentication token available"))
+            }
+
+            // Ensure HttpClient has the latest token
+            HttpClientFactory.setAuthToken(token)
+
+            val response = client.get(ApiConfig.Endpoints.MY_VEHICLE_DATA)
+            
+            if (response.status.isSuccess()) {
+                val vehicleData: MyVehicleDataResponse = response.body()
+                Result.success(vehicleData)
+            } else {
+                // Handle specific error responses based on status code
+                try {
+                    when (response.status) {
+                        HttpStatusCode.Unauthorized -> {
+                            // 401 - Authentication errors (missing token claims or user not found)
+                            val errorResponse: SimpleErrorResponse = response.body()
+                            when (errorResponse.error) {
+                                "User not authenticated" -> {
+                                    // Clear invalid token and force re-login
+                                    sessionManager.clearSession()
+                                    Result.failure(Exception("Session expired. Please login again."))
+                                }
+                                "User not found" -> {
+                                    // User account may have been deleted
+                                    sessionManager.clearSession()
+                                    Result.failure(Exception("User account not found. Please login again."))
+                                }
+                                else -> {
+                                    Result.failure(Exception(errorResponse.error))
+                                }
+                            }
+                        }
+                        HttpStatusCode.InternalServerError -> {
+                            // 500 - Server errors (invalid token claims or database query failed)
+                            val errorResponse: SimpleErrorResponse = response.body()
+                            when (errorResponse.error) {
+                                "Failed to parse user claims" -> {
+                                    // Token is corrupted, clear session
+                                    sessionManager.clearSession()
+                                    Result.failure(Exception("Authentication error. Please login again."))
+                                }
+                                "Failed to retrieve vehicle data" -> {
+                                    Result.failure(Exception("Server error while retrieving vehicle data. Please try again later."))
+                                }
+                                else -> {
+                                    Result.failure(Exception("Server error: ${errorResponse.error}"))
+                                }
+                            }
+                        }
+                        else -> {
+                            // Fallback for other status codes
+                            try {
+                                val errorResponse: SimpleErrorResponse = response.body()
+                                Result.failure(Exception(errorResponse.error))
+                            } catch (parseException: Exception) {
+                                Result.failure(Exception("Failed to get vehicle data: ${response.status.description}"))
+                            }
+                        }
+                    }
+                } catch (parseException: Exception) {
+                    // Fallback if error response parsing fails
+                    Result.failure(Exception("Failed to get vehicle data: ${response.status.description}"))
+                }
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
     
     /**
      * Upload Avatar
