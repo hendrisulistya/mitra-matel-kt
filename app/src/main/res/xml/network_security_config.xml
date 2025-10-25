@@ -5,10 +5,18 @@
         <domain includeSubdomains="true">mitra-matel.com</domain>
         <domain includeSubdomains="true">api.mitra-matel.com</domain>
         <domain includeSubdomains="true">grpc.mitra-matel.com</domain>
-        <!-- Add certificate pinning for production (optional) -->
+        <!-- Certificate pinning for production domains -->
         <pin-set expiration="2025-12-31">
-            <!-- Replace with your actual certificate pins -->
-            <!-- <pin digest="SHA-256">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin> -->
+            <!-- Current certificate pin (Let's Encrypt issued) -->
+            <pin digest="SHA-256">2uqZNWk18aYlBbtYaC2bCFUl439TPzyudzVy9nrY1+E=</pin>
+            <!-- Let's Encrypt Authority X3 (Cross-signed by IdenTrust) -->
+            <pin digest="SHA-256">YLh1dUR9y6Kja30RrAn7JKnbQG/uEtLMkBgFF2Fuihg=</pin>
+            <!-- Let's Encrypt Authority X4 (Cross-signed by IdenTrust) -->
+            <pin digest="SHA-256">sRHdihwgkaib1P1gxX8HFszlD+7/gTfNvuAybgLPNis=</pin>
+            <!-- ISRG Root X1 (Let's Encrypt's own root) -->
+            <pin digest="SHA-256">C5+lpZ7tcVwmwQIMcRtPbsQtWLABXhQzejna0wHFr8M=</pin>
+            <!-- ISRG Root X2 (Let's Encrypt's ECDSA root) -->
+            <pin digest="SHA-256">diGVwiVYbubAI3RW4hB9xU8e/CH2GnkuvVFZE8zmgzI=</pin>
         </pin-set>
     </domain-config>
     
