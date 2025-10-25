@@ -1,12 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">127.0.0.1</domain>
+    <!-- Production domains - HTTPS only, no cleartext -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">mitra-matel.com</domain>
+        <domain includeSubdomains="true">api.mitra-matel.com</domain>
+        <domain includeSubdomains="true">grpc.mitra-matel.com</domain>
+        <!-- Add certificate pinning for production (optional) -->
+        <pin-set expiration="2025-12-31">
+            <!-- Replace with your actual certificate pins -->
+            <!-- <pin digest="SHA-256">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin> -->
+        </pin-set>
     </domain-config>
+    
+    <!-- Development domains - allow cleartext for debugging -->
     <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <!-- Add your local development IP if needed -->
+        <!-- <domain includeSubdomains="true">192.168.1.100</domain> -->
     </domain-config>
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">10.0.2.2</domain>
-    </domain-config>
+    
+    <!-- Default configuration for all other domains - HTTPS only -->
+    <base-config cleartextTrafficPermitted="false" />
 </network-security-config>

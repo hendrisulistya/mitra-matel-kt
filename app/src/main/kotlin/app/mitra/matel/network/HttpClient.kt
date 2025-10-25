@@ -12,6 +12,13 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
+import java.security.cert.X509Certificate
+import javax.net.ssl.X509TrustManager
+import javax.net.ssl.SSLContext
+import javax.net.ssl.SSLSession
+import javax.net.ssl.HostnameVerifier
+import javax.net.ssl.TrustManagerFactory
+import java.security.KeyStore
 import kotlinx.serialization.json.Json
 import app.mitra.matel.utils.SessionManager
 import app.mitra.matel.network.models.LoginRequest
@@ -42,6 +49,56 @@ object HttpClientFactory {
     
     fun create(context: Context? = null): HttpClient {
         return HttpClient(Android) {
+            // SSL/TLS Configuration for Production
+            if (context != null) {
+                engine {
+                    // Enable SSL/TLS security for production
+                    connectTimeout = 10_000
+                    socketTimeout = 15_000
+                    
+                    // Additional SSL/TLS hardening with certificate pinning
+                    sslManager = { httpsURLConnection ->
+                        httpsURLConnection.hostnameVerifier = javax.net.ssl.HostnameVerifier { hostname: String, session: javax.net.ssl.SSLSession ->
+                            // Verify hostname matches certificate
+                            when {
+                                // Allow localhost for development
+                                hostname == "localhost" || hostname == "127.0.0.1" || hostname == "10.0.2.2" -> true
+                                // Verify production domains with certificate pinning
+                                hostname.endsWith("mitra-matel.com") -> {
+                                    val defaultVerification = javax.net.ssl.HttpsURLConnection.getDefaultHostnameVerifier()
+                                        .verify(hostname, session)
+                                    
+                                    if (!defaultVerification) {
+                                        Log.w("HttpClient", "Default hostname verification failed for $hostname")
+                                        false
+                                    } else {
+                                        // Additional certificate pinning validation
+                                        try {
+                                            val certificates = session.peerCertificateChain
+                                            val x509Certs = certificates.filterIsInstance<java.security.cert.X509Certificate>().toTypedArray()
+                                            
+                                            if (x509Certs.isNotEmpty()) {
+                                                val pinValid = SecurityConfig.validateCertificatePin(hostname, x509Certs)
+                                                if (!pinValid) {
+                                                    Log.w("HttpClient", "Certificate pinning validation failed for $hostname")
+                                                }
+                                                pinValid
+                                            } else {
+                                                defaultVerification
+                                            }
+                                        } catch (e: Exception) {
+                                            Log.e("HttpClient", "Certificate pinning validation error for $hostname", e)
+                                            false
+                                        }
+                                    }
+                                }
+                                else -> false
+                            }
+                        }
+                    }
+                }
+            }
+            
             // JSON Configuration
             install(ContentNegotiation) {
                 json(Json {
