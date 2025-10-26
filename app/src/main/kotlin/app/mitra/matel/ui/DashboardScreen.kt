@@ -81,7 +81,18 @@ fun DashboardScreen(
     var isSidebarVisible by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showAnnouncement by remember { mutableStateOf(!sessionManager.isAnnouncementDismissed()) }
-    var keyboardLayout by remember { mutableStateOf(KeyboardLayout.QWERTY1) }
+    // Load saved keyboard layout preference
+    var keyboardLayout by remember { 
+        mutableStateOf(
+            when (sessionManager.getKeyboardLayout()) {
+                "NUMERIC" -> KeyboardLayout.NUMERIC
+                "QWERTY1" -> KeyboardLayout.QWERTY1
+                "QWERTY2" -> KeyboardLayout.QWERTY2
+                "QWERTY3" -> KeyboardLayout.QWERTY3
+                else -> KeyboardLayout.QWERTY1
+            }
+        )
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -110,12 +121,15 @@ fun DashboardScreen(
                     // Keyboard layout toggle
                     IconButton(
                         onClick = {
-                            keyboardLayout = when (keyboardLayout) {
+                            val newLayout = when (keyboardLayout) {
                                 KeyboardLayout.NUMERIC -> KeyboardLayout.QWERTY1
                                 KeyboardLayout.QWERTY1 -> KeyboardLayout.QWERTY2
                                 KeyboardLayout.QWERTY2 -> KeyboardLayout.QWERTY3
                                 KeyboardLayout.QWERTY3 -> KeyboardLayout.NUMERIC
                             }
+                            keyboardLayout = newLayout
+                            // Save the new layout preference
+                            sessionManager.saveKeyboardLayout(newLayout.name)
                         }
                     ) {
                         Text(

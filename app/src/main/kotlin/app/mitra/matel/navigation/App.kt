@@ -19,15 +19,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import app.mitra.matel.ui.theme.MitraMatelTheme
-import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import com.google.accompanist.navigation.animation.AnimatedNavHost
-import com.google.accompanist.navigation.animation.composable
-import com.google.accompanist.navigation.animation.rememberAnimatedNavController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
 import app.mitra.matel.ui.SignInScreen
 import app.mitra.matel.ui.SignUpScreen
 import app.mitra.matel.ui.WelcomeScreen
@@ -39,7 +38,6 @@ import app.mitra.matel.viewmodel.AuthViewModel
 import app.mitra.matel.viewmodel.AuthState
 import app.mitra.matel.network.NetworkDebugHelper
 
-@OptIn(ExperimentalAnimationApi::class)
 @Composable
 @Preview
 fun App() {
@@ -47,7 +45,7 @@ fun App() {
         val context = LocalContext.current
         val sessionManager = remember { SessionManager(context) }
         val authViewModel = remember { AuthViewModel(context) }
-        val navController = rememberAnimatedNavController()
+        val navController = rememberNavController()
         
         var isInitializing by remember { mutableStateOf(true) }
         var startDestination by remember { mutableStateOf("welcome") }
@@ -106,7 +104,7 @@ fun App() {
                 CircularProgressIndicator()
             }
         } else {
-            AnimatedNavHost(
+            NavHost(
                 navController = navController,
                 startDestination = startDestination
             ) {

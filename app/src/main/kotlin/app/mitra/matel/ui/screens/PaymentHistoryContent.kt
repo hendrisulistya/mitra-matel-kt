@@ -164,7 +164,7 @@ fun PaymentHistoryCard(
         else -> PaymentStatus.FAILED
     }
     
-    val formattedAmount = NumberFormat.getCurrencyInstance(Locale("id", "ID")).format(payment.amount)
+    val formattedAmount = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")).format(payment.amount)
     
     val planName = when (payment.subscriptionPlan.lowercase()) {
         "trial" -> "Trial"
@@ -276,7 +276,7 @@ fun PaymentDetailModal(
         else -> PaymentStatus.FAILED
     }
     
-    val formattedAmount = NumberFormat.getCurrencyInstance(Locale("id", "ID")).format(payment.amount)
+    val formattedAmount = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")).format(payment.amount)
     
     val planName = when (payment.subscriptionPlan.lowercase()) {
         "trial" -> "Trial"
@@ -329,7 +329,7 @@ fun PaymentDetailModal(
                     }
                 }
 
-                Divider()
+                HorizontalDivider()
 
                 // Payment Information
                 DetailRow("Order ID", payment.orderId)
@@ -373,7 +373,7 @@ fun PaymentDetailModal(
                         paymentData.receiverAccountNumber?.let { DetailRow("No. Rekening Penerima", it) }
                         paymentData.receiverAccountName?.let { DetailRow("Nama Penerima", it) }
                         paymentData.transferAmount?.let { 
-                            DetailRow("Jumlah Transfer", NumberFormat.getCurrencyInstance(Locale("id", "ID")).format(it))
+                            DetailRow("Jumlah Transfer", NumberFormat.getCurrencyInstance(Locale.forLanguageTag("id-ID")).format(it))
                         }
                         paymentData.transferDate?.let { DetailRow("Tanggal Transfer", it) }
                         paymentData.transferNote?.let { DetailRow("Catatan Transfer", it) }

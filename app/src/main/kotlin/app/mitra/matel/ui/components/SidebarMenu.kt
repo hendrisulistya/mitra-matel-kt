@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -62,7 +63,7 @@ fun SidebarMenu(
         MenuSection(
             items = listOf(
                 MenuItem("Profil Saya", Icons.Default.Person),
-                MenuItem("Riwayat Pencarian", Icons.Default.List)
+                MenuItem("Riwayat Pencarian", Icons.AutoMirrored.Filled.List)
             )
         ),
         MenuSection(
@@ -192,7 +193,7 @@ fun SidebarMenu(
                 ) {
                     Text(
                         text = if (vehicleCount != null) {
-                            "${NumberFormat.getNumberInstance(Locale("id")).format(vehicleCount)} Kendaraan"
+                            "${NumberFormat.getNumberInstance(Locale.forLanguageTag("id")).format(vehicleCount)} Kendaraan"
                         } else {
                             "Loading Kendaraan..."
                         },

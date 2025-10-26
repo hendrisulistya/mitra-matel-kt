@@ -49,7 +49,10 @@ class SessionManager(private val context: Context) {
         // Announcement dismissal key
         private const val KEY_ANNOUNCEMENT_DISMISSED = "announcement_dismissed"
         
-        // Vehicle history keys
+        // Keyboard layout preference key
+        private const val KEY_KEYBOARD_LAYOUT = "keyboard_layout"
+        
+        // Vehicle history key
         private const val KEY_VEHICLE_HISTORY = "vehicle_history"
     }
     
@@ -513,6 +516,33 @@ class SessionManager(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to get announcement dismissal state: ${e.message}", e)
             false
+        }
+    }
+    
+    /**
+     * Save keyboard layout preference
+     */
+    fun saveKeyboardLayout(layoutName: String) {
+        try {
+            sharedPreferences.edit()
+                .putString(KEY_KEYBOARD_LAYOUT, layoutName)
+                .apply()
+            Log.d(TAG, "Keyboard layout saved: $layoutName")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error saving keyboard layout", e)
+        }
+    }
+    
+    /**
+     * Get saved keyboard layout preference
+     * Returns "QWERTY1" as default if no preference is saved
+     */
+    fun getKeyboardLayout(): String {
+        return try {
+            sharedPreferences.getString(KEY_KEYBOARD_LAYOUT, "QWERTY1") ?: "QWERTY1"
+        } catch (e: Exception) {
+            Log.e(TAG, "Error reading keyboard layout", e)
+            "QWERTY1"
         }
     }
     

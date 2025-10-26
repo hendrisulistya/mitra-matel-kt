@@ -330,7 +330,7 @@ private fun DefaultAvatarIcon(modifier: Modifier = Modifier) {
 private fun formatDateTime(dateTimeString: String): String {
     return try {
         val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSSSSXXX", Locale.getDefault())
-        val outputFormat = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("id", "ID"))
+        val outputFormat = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.forLanguageTag("id-ID"))
         val date = inputFormat.parse(dateTimeString)
         outputFormat.format(date ?: Date())
     } catch (e: Exception) {

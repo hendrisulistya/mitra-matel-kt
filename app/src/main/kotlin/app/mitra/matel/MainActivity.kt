@@ -53,11 +53,9 @@ class MainActivity : ComponentActivity() {
             add(Manifest.permission.ACCESS_FINE_LOCATION)
             add(Manifest.permission.ACCESS_COARSE_LOCATION)
             
-            // Camera permission
-            add(Manifest.permission.CAMERA)
+
             
-            // Microphone permission
-            add(Manifest.permission.RECORD_AUDIO)
+
         }
         
         // Filter out already granted permissions

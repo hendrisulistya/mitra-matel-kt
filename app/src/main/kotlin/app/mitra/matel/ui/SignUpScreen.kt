@@ -49,6 +49,10 @@ fun SignUpScreen(
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    
+    // Password validation states
+    var passwordError by remember { mutableStateOf<String?>(null) }
+    var confirmPasswordError by remember { mutableStateOf<String?>(null) }
 
     // Handle registration state changes
     LaunchedEffect(registerState) {
@@ -140,41 +144,75 @@ fun SignUpScreen(
                 textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp)
             )
 
-            // Password field - compact
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("Kata Sandi", fontSize = 12.sp) },
-                placeholder = { Text("Kata sandi", fontSize = 12.sp) },
-                trailingIcon = {
-                    TextButton(onClick = { passwordVisible = !passwordVisible }) {
-                        Text(if (passwordVisible) "Hide" else "Show", fontSize = 10.sp)
+            // Password field - compact with validation
+            Column {
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { 
+                        password = it
+                        passwordError = when {
+                            it.isEmpty() -> null
+                            it.length < 6 -> "Kata sandi minimal 6 karakter"
+                            else -> null
+                        }
+                        // Re-validate confirm password if it's not empty
+                        if (confirmPassword.isNotEmpty()) {
+                            confirmPasswordError = if (confirmPassword != it) {
+                                "Konfirmasi kata sandi tidak cocok"
+                            } else null
+                        }
+                    },
+                    label = { Text("Kata Sandi", fontSize = 12.sp) },
+                    placeholder = { Text("Minimal 6 karakter", fontSize = 12.sp) },
+                    trailingIcon = {
+                        TextButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Text(if (passwordVisible) "Hide" else "Show", fontSize = 10.sp)
+                        }
+                    },
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                    isError = passwordError != null,
+                    supportingText = passwordError?.let { 
+                        { Text(it, fontSize = 10.sp, color = MaterialTheme.colorScheme.error) }
+                    } ?: {
+                        Text("Gunakan minimal 6 karakter", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                },
-                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp)
-            )
+                )
+            }
 
-            // Confirm Password field - compact
-            OutlinedTextField(
-                value = confirmPassword,
-                onValueChange = { confirmPassword = it },
-                label = { Text("Konfirmasi Kata Sandi", fontSize = 12.sp) },
-                placeholder = { Text("Konfirmasi kata sandi", fontSize = 12.sp) },
-                trailingIcon = {
-                    TextButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
-                        Text(if (confirmPasswordVisible) "Hide" else "Show", fontSize = 10.sp)
+            // Confirm Password field - compact with validation
+            Column {
+                OutlinedTextField(
+                    value = confirmPassword,
+                    onValueChange = { 
+                        confirmPassword = it
+                        confirmPasswordError = when {
+                            it.isEmpty() -> null
+                            it != password -> "Konfirmasi kata sandi tidak cocok"
+                            else -> null
+                        }
+                    },
+                    label = { Text("Konfirmasi Kata Sandi", fontSize = 12.sp) },
+                    placeholder = { Text("Konfirmasi kata sandi", fontSize = 12.sp) },
+                    trailingIcon = {
+                        TextButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                            Text(if (confirmPasswordVisible) "Hide" else "Show", fontSize = 10.sp)
+                        }
+                    },
+                    visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                    isError = confirmPasswordError != null,
+                    supportingText = confirmPasswordError?.let { 
+                        { Text(it, fontSize = 10.sp, color = MaterialTheme.colorScheme.error) }
                     }
-                },
-                visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp)
-            )
+                )
+            }
         }
 
         // Bottom section - compact
@@ -205,12 +243,25 @@ fun SignUpScreen(
             Button(
                 onClick = {
                     errorMessage = null
-                    if (fullName.isNotBlank() && email.isNotBlank() && 
-                        phoneNumber.isNotBlank() && password.isNotBlank() && 
-                        confirmPassword.isNotBlank()) {
-                        viewModel.register(fullName, email, phoneNumber, password, confirmPassword)
-                    } else {
-                        errorMessage = "Semua field harus diisi"
+                    
+                    // Validate all fields
+                    when {
+                        fullName.isBlank() || email.isBlank() || phoneNumber.isBlank() || 
+                        password.isBlank() || confirmPassword.isBlank() -> {
+                            errorMessage = "Semua field harus diisi"
+                        }
+                        password.length < 6 -> {
+                            errorMessage = "Kata sandi minimal 6 karakter"
+                        }
+                        password != confirmPassword -> {
+                            errorMessage = "Konfirmasi kata sandi tidak cocok"
+                        }
+                        passwordError != null || confirmPasswordError != null -> {
+                            errorMessage = "Mohon perbaiki kesalahan pada form"
+                        }
+                        else -> {
+                            viewModel.register(fullName, email, phoneNumber, password, confirmPassword)
+                        }
                     }
                 },
                 enabled = registerState !is RegisterState.Loading,

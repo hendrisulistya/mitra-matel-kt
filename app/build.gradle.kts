@@ -17,11 +17,25 @@ android {
         applicationId = "app.mitra.matel"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 1
+        versionCode = 3
         versionName = "0.9.112"
         
         // Add build number that increments with each build
         buildConfigField("int", "BUILD_NUMBER", "${System.currentTimeMillis() / 1000}")
+    }
+
+    signingConfigs {
+        create("release") {
+            val keystorePasswordEnv = System.getenv("KEYSTORE_PASSWORD")
+            val keyPasswordEnv = System.getenv("KEY_PASSWORD")
+            
+            if (keystorePasswordEnv != null && keyPasswordEnv != null) {
+                storeFile = rootProject.file("my-release-key.jks")
+                storePassword = keystorePasswordEnv
+                keyAlias = System.getenv("KEY_ALIAS") ?: "mitramatel"
+                keyPassword = keyPasswordEnv
+            }
+        }
     }
 
     buildTypes {
@@ -36,6 +50,12 @@ android {
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             buildConfigField("boolean", "IS_PRODUCTION", "true")
+            signingConfig = signingConfigs.getByName("release")
+            
+            // Enable debug symbols for native code crash analysis
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
         }
     }
 
@@ -62,25 +82,10 @@ android {
         }
     }
 
-    signingConfigs {
-        create("release") {
-            val keystorePasswordEnv = System.getenv("KEYSTORE_PASSWORD")
-            val keyPasswordEnv = System.getenv("KEY_PASSWORD")
-            
-            if (keystorePasswordEnv != null && keyPasswordEnv != null) {
-                storeFile = rootProject.file("my-release-key.jks")
-                storePassword = keystorePasswordEnv
-                keyAlias = System.getenv("KEY_ALIAS") ?: "mitramatel"
-                keyPassword = keyPasswordEnv
-            }
-        }
-    }
-
-    buildTypes {
-        release {
-            isMinifyEnabled = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.getByName("debug")
+    bundle {
+        // Include native debug symbols in the bundle
+        abi {
+            enableSplit = true
         }
     }
 
