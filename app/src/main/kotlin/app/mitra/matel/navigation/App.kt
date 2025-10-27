@@ -36,7 +36,9 @@ import app.mitra.matel.ui.screens.VehicleDetailContent
 import app.mitra.matel.utils.SessionManager
 import app.mitra.matel.viewmodel.AuthViewModel
 import app.mitra.matel.viewmodel.AuthState
+import app.mitra.matel.viewmodel.SearchViewModel
 import app.mitra.matel.network.NetworkDebugHelper
+import app.mitra.matel.network.GrpcService
 
 @Composable
 @Preview
@@ -45,6 +47,8 @@ fun App() {
         val context = LocalContext.current
         val sessionManager = remember { SessionManager(context) }
         val authViewModel = remember { AuthViewModel(context) }
+        val grpcService = remember { GrpcService(context) }
+        val searchViewModel = remember { SearchViewModel(grpcService) }
         val navController = rememberNavController()
         
         var isInitializing by remember { mutableStateOf(true) }
@@ -199,6 +203,7 @@ fun App() {
                 }
             ) {
                 DashboardScreen(
+                    searchViewModel = searchViewModel,
                     onLogout = {
                         // Clear session on logout
                         sessionManager.clearSession()
@@ -239,7 +244,15 @@ fun App() {
                 }
             ) {
                 MicSearchContent(
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
+                    onSearchResult = { searchText ->
+                        // Keep user on MicSearch page to see results
+                        // No navigation needed - results will be displayed on the same page
+                    },
+                    onVehicleClick = { vehicleId ->
+                        navController.navigate("vehicle_detail/$vehicleId")
+                    },
+                    searchViewModel = searchViewModel
                 )
             }
 

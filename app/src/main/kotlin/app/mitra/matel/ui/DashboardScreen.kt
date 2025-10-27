@@ -30,6 +30,7 @@ import app.mitra.matel.utils.SessionManager
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
+    searchViewModel: SearchViewModel,
     onLogout: () -> Unit,
     onNavigateToMicSearch: () -> Unit = {},
     onNavigateToVehicleDetail: (String) -> Unit = {},
@@ -38,8 +39,6 @@ fun DashboardScreen(
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
     val authViewModel = remember { AuthViewModel(context) }
-    val grpcService = remember { GrpcService(context) }
-    val searchViewModel = remember { SearchViewModel(grpcService) }
     val profileViewModel = remember { ProfileViewModel(context) }
     val apiService = remember { app.mitra.matel.network.ApiService(context) }
     val searchUiState by searchViewModel.uiState.collectAsState()
@@ -404,8 +403,13 @@ fun AnnouncementDialog(
 @Preview(showBackground = true)
 @Composable
 fun DashboardScreenPreview() {
+    val context = LocalContext.current
+    val grpcService = GrpcService(context)
+    val searchViewModel = SearchViewModel(grpcService)
+    
     MaterialTheme {
         DashboardScreen(
+            searchViewModel = searchViewModel,
             onLogout = {},
             onNavigateToMicSearch = {}
         )

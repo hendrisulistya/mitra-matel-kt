@@ -31,6 +31,29 @@ import app.mitra.matel.R
 import app.mitra.matel.viewmodel.AuthViewModel
 import app.mitra.matel.viewmodel.RegisterState
 
+// Email validation functions
+private fun isValidEmail(email: String): Boolean {
+    return android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
+}
+
+private fun isAllowedEmailDomain(email: String): Boolean {
+    if (!isValidEmail(email)) return false
+    
+    val allowedDomains = setOf(
+        "gmail.com", "googlemail.com",
+        "yahoo.com", "yahoo.co.id", "ymail.com",
+        "outlook.com", "hotmail.com", "live.com",
+        "icloud.com", "me.com",
+        "protonmail.com", "proton.me",
+        "aol.com",
+        "mail.com",
+        "zoho.com"
+    )
+    
+    val domain = email.substringAfter("@").lowercase()
+    return allowedDomains.contains(domain)
+}
+
 @Composable
 fun SignUpScreen(
     onBack: () -> Unit = {},
@@ -53,6 +76,9 @@ fun SignUpScreen(
     // Password validation states
     var passwordError by remember { mutableStateOf<String?>(null) }
     var confirmPasswordError by remember { mutableStateOf<String?>(null) }
+    
+    // Email validation state
+    var emailError by remember { mutableStateOf<String?>(null) }
 
     // Handle registration state changes
     LaunchedEffect(registerState) {
@@ -120,17 +146,33 @@ fun SignUpScreen(
                 textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp)
             )
 
-            // Email field - compact
-            OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = { Text("Email", fontSize = 12.sp) },
-                placeholder = { Text("contoh@email.com", fontSize = 12.sp) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp)
-            )
+            // Email field - compact with validation
+            Column {
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { 
+                        email = it
+                        emailError = when {
+                            it.isEmpty() -> null
+                            !isValidEmail(it) -> "Format email tidak valid"
+                            !isAllowedEmailDomain(it) -> "Hanya menerima email dari Gmail, Yahoo, Outlook, dan domain umum lainnya"
+                            else -> null
+                        }
+                    },
+                    label = { Text("Email", fontSize = 12.sp) },
+                    placeholder = { Text("contoh@gmail.com", fontSize = 12.sp) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                    isError = emailError != null,
+                    supportingText = emailError?.let { 
+                        { Text(it, fontSize = 10.sp, color = MaterialTheme.colorScheme.error) }
+                    } ?: {
+                        Text("Gunakan email dari Gmail, Yahoo, Outlook, dll", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                )
+            }
 
             // Phone Number field - compact
             OutlinedTextField(
@@ -250,13 +292,19 @@ fun SignUpScreen(
                         password.isBlank() || confirmPassword.isBlank() -> {
                             errorMessage = "Semua field harus diisi"
                         }
+                        !isValidEmail(email) -> {
+                            errorMessage = "Format email tidak valid"
+                        }
+                        !isAllowedEmailDomain(email) -> {
+                            errorMessage = "Email harus menggunakan domain yang diizinkan (Gmail, Yahoo, Outlook, dll)"
+                        }
                         password.length < 6 -> {
                             errorMessage = "Kata sandi minimal 6 karakter"
                         }
                         password != confirmPassword -> {
                             errorMessage = "Konfirmasi kata sandi tidak cocok"
                         }
-                        passwordError != null || confirmPasswordError != null -> {
+                        emailError != null || passwordError != null || confirmPasswordError != null -> {
                             errorMessage = "Mohon perbaiki kesalahan pada form"
                         }
                         else -> {

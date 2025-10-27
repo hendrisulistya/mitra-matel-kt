@@ -53,6 +53,8 @@ class MainActivity : ComponentActivity() {
             add(Manifest.permission.ACCESS_FINE_LOCATION)
             add(Manifest.permission.ACCESS_COARSE_LOCATION)
             
+            // Microphone permission for voice search
+            add(Manifest.permission.RECORD_AUDIO)
 
             
 
