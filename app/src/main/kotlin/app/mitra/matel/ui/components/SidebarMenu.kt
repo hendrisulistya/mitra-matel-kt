@@ -48,7 +48,8 @@ fun SidebarMenu(
     onMenuItemClick: (String) -> Unit,
     onClose: () -> Unit,
     profile: ProfileResponse? = null,
-    apiService: ApiService? = null
+    apiService: ApiService? = null,
+    onRefreshProfile: () -> Unit = {}
 ) {
     // State for vehicle count
     var vehicleCount by remember { mutableStateOf<Int?>(null) }
@@ -126,27 +127,62 @@ fun SidebarMenu(
                     ) {
                         Text(
                             text = profile?.fullName ?: "Loading...",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Icon(
                                 Icons.Default.Star,
                                 contentDescription = "Tier",
-                                modifier = Modifier.size(12.dp),
+                                modifier = Modifier.size(16.dp),
                                 tint = Purple40
                             )
                             Text(
                                 text = profile?.tier?.replaceFirstChar { it.uppercase() } ?: "Free",
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = FontWeight.Medium,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
                                 color = Purple40
                             )
                         }
+                        // Active Status Row
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            val isActive = profile?.subscriptionStatus == "active"
+                            Icon(
+                                if (isActive) Icons.Default.CheckCircle else Icons.Default.Close,
+                                contentDescription = "Status",
+                                modifier = Modifier.size(16.dp),
+                                tint = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                            )
+                            Text(
+                                text = if (isActive) "Aktif" else "Tidak Aktif",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                    
+                    // Refresh Button
+                    IconButton(
+                        onClick = onRefreshProfile,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = "Refresh Profile",
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
                     }
                 }
             }
@@ -340,7 +376,8 @@ fun SidebarMenuPreview() {
             SidebarMenu(
                 selectedItem = "Profil Saya",
                 onMenuItemClick = {},
-                onClose = {}
+                onClose = {},
+                onRefreshProfile = {}
             )
         }
     }

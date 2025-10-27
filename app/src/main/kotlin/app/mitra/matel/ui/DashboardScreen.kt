@@ -5,6 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -80,6 +81,8 @@ fun DashboardScreen(
     var isSidebarVisible by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showAnnouncement by remember { mutableStateOf(!sessionManager.isAnnouncementDismissed()) }
+    var showActivationDialog by remember { mutableStateOf(false) }
+    
     // Load saved keyboard layout preference
     var keyboardLayout by remember { 
         mutableStateOf(
@@ -91,6 +94,34 @@ fun DashboardScreen(
                 else -> KeyboardLayout.QWERTY1
             }
         )
+    }
+
+    // Function to check if user can perform search
+    fun canUserSearch(): Boolean {
+        val userProfile = profile
+        return if (userProfile != null) {
+            val isPremium = userProfile.tier == "premium"
+            val isActive = userProfile.subscriptionStatus == "active"
+            
+            // Premium tier can search regardless of activation status
+            // Regular tier needs active status
+            if (isPremium) {
+                true
+            } else {
+                isActive
+            }
+        } else {
+            false // If no profile data, don't allow search
+        }
+    }
+
+    // Function to handle search with premium/activation check
+    fun handleSearchWithCheck(searchAction: () -> Unit) {
+        if (canUserSearch()) {
+            searchAction()
+        } else {
+            showActivationDialog = true
+        }
     }
 
     Scaffold(
@@ -179,13 +210,25 @@ fun DashboardScreen(
                 SearchForm(
                     searchText = searchUiState.searchText,
                     selectedSearchType = searchUiState.searchType,
-                    onSearchTextChange = { searchViewModel.updateSearchText(it) },
+                    onSearchTextChange = { text -> 
+                        handleSearchWithCheck { 
+                            searchViewModel.updateSearchText(text) 
+                        }
+                    },
                     onSearchTypeChange = { searchViewModel.updateSearchType(it) },
-                    onSearch = { searchViewModel.performSearch() },
+                    onSearch = { 
+                        handleSearchWithCheck { 
+                            searchViewModel.performSearch() 
+                        }
+                    },
                     onClear = { searchViewModel.clearResults() },
                     searchDurationMs = searchUiState.searchDurationMs,
                     grpcConnectionStatus = searchUiState.grpcConnectionStatus,
-                    onMicClick = onNavigateToMicSearch,
+                    onMicClick = { 
+                        handleSearchWithCheck { 
+                            onNavigateToMicSearch() 
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(0.13f)
@@ -196,14 +239,17 @@ fun DashboardScreen(
                     keyboardLayout = keyboardLayout,
                     onKeyClick = { key ->
                         if (key == "⌫") {
-                            // Use current ViewModel state instead of UI state
+                            // Allow backspace without premium check
                             val currentText = searchViewModel.uiState.value.searchText
                             if (currentText.isNotEmpty()) {
                                 searchViewModel.updateSearchText(currentText.dropLast(1))
                             }
                         } else {
-                            val currentText = searchViewModel.uiState.value.searchText
-                            searchViewModel.updateSearchText(currentText + key)
+                            // Check premium/activation for text input
+                            handleSearchWithCheck {
+                                val currentText = searchViewModel.uiState.value.searchText
+                                searchViewModel.updateSearchText(currentText + key)
+                            }
                         }
                     },
                     modifier = Modifier
@@ -307,7 +353,8 @@ fun DashboardScreen(
                 },
                 onClose = { isSidebarVisible = false },
                 profile = profile,
-                apiService = apiService
+                apiService = apiService,
+                onRefreshProfile = { profileViewModel.fetchProfile() }
             )
         }
 
@@ -317,6 +364,8 @@ fun DashboardScreen(
                 onDismiss = { showLogoutDialog = false },
                 onConfirm = {
                     showLogoutDialog = false
+                    // Clear profile state from ViewModel before logout
+                    profileViewModel.clearProfile()
                     authViewModel.logout { _: Boolean, _: String? ->
                         onLogout()
                     }
@@ -330,6 +379,17 @@ fun DashboardScreen(
                 onDismiss = { 
                     showAnnouncement = false
                     sessionManager.setAnnouncementDismissed(true)
+                }
+            )
+        }
+
+        // Activation Required Dialog
+        if (showActivationDialog) {
+            ActivationRequiredDialog(
+                onDismiss = { showActivationDialog = false },
+                onNavigateToActivation = {
+                    showActivationDialog = false
+                    selectedMenuItem = "Aktivasi & Pembayaran"
                 }
             )
         }
@@ -381,7 +441,7 @@ fun AnnouncementDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "DATA ADIRA OKTOBER SUDAH DITAMBAHAKAN",
+                        text = "DATA HMF OKTOBER SUDAH DITAMBAHAKAN",
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(12.dp),
                         color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -394,6 +454,90 @@ fun AnnouncementDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("OK")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ActivationRequiredDialog(
+    onDismiss: () -> Unit,
+    onNavigateToActivation: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true
+        )
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = MaterialTheme.shapes.large,
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = "Activation Required",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(48.dp)
+                )
+                
+                Text(
+                    text = "Aktivasi Diperlukan",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                
+                Text(
+                    text = "Untuk menggunakan fitur pencarian, akun Anda perlu diaktivasi dengan berlangganan paket premium. Silakan lakukan aktivasi terlebih dahulu.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .weight(1f)
+                            .wrapContentHeight()
+                    ) {
+                        Text(
+                            text = "Nanti",
+                            maxLines = 1
+                        )
+                    }
+                    
+                    Button(
+                        onClick = onNavigateToActivation,
+                        modifier = Modifier
+                            .weight(1f)
+                            .wrapContentHeight()
+                    ) {
+                        Text(
+                            text = "Aktivasi",
+                            maxLines = 1
+                        )
+                    }
                 }
             }
         }
