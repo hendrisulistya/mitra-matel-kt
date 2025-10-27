@@ -91,8 +91,19 @@ class SearchViewModel(private val grpcService: GrpcService) : ViewModel() {
         val currentRequestId = ++searchRequestId
         val startTime = System.currentTimeMillis()
         
+        // ✅ CHECK CONNECTION STATUS: Provide user feedback if not ready
+        val connectionStatus = currentState.grpcConnectionStatus
+        if (connectionStatus != null && !connectionStatus.isHealthy) {
+            _uiState.value = currentState.copy(
+                error = "Connecting to server...",
+                results = emptyList()
+            )
+            // Add small delay to show connecting message
+            delay(100)
+        }
+        
         try {
-            // ✅ UNARY: Now using fast unary gRPC method for better connection establishment
+            // ✅ UNARY: Now using fast unary gRPC method with connection readiness check
             val results = grpcService.searchVehicle(
                 searchType = currentState.searchType,
                 searchValue = currentState.searchText

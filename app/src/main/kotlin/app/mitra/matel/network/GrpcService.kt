@@ -112,35 +112,30 @@ class GrpcService(private val context: Context) {
     fun warmUpConnection() {
         scope.launch {
             try {
-                android.util.Log.d("GrpcService", "Starting connection warmup...")
+                android.util.Log.d("GrpcService", "Starting aggressive connection warmup on app resume...")
                 
                 // Force channel to connect if idle
                 val currentState = channel.getState(true)
-                android.util.Log.d("GrpcService", "Current channel state: $currentState")
+                android.util.Log.d("GrpcService", "Initial channel state: $currentState")
                 
-                // Wait for connection to be ready (with timeout)
-                var attempts = 0
-                val maxAttempts = 10
-                while (attempts < maxAttempts) {
-                    val state = channel.getState(false)
-                    if (state == io.grpc.ConnectivityState.READY) {
-                        android.util.Log.d("GrpcService", "Channel ready after $attempts attempts")
-                        break
-                    }
-                    if (state == io.grpc.ConnectivityState.TRANSIENT_FAILURE) {
-                        android.util.Log.w("GrpcService", "Channel in failure state, requesting connection")
-                        channel.getState(true) // Request connection
-                    }
-                    kotlinx.coroutines.delay(100) // Wait 100ms between checks
-                    attempts++
-                }
-                
-                // Proactively check token validity with a lightweight health check
+                // More aggressive connection establishment
                 try {
-                    healthService.checkHealth()
-                    android.util.Log.d("GrpcService", "Token validation successful")
+                    waitForConnectionReady(timeoutMs = 3000) // 3 second timeout for warmup
+                    android.util.Log.d("GrpcService", "Connection warmup successful")
+                    
+                    // Proactively check token validity with a lightweight health check
+                    try {
+                        healthService.checkHealth()
+                        android.util.Log.d("GrpcService", "Token validation successful")
+                    } catch (e: Exception) {
+                        android.util.Log.d("GrpcService", "Token validation failed, may need refresh: ${e.message}")
+                        // Try to refresh token proactively
+                        refreshTokenIfPossible()
+                    }
+                    
                 } catch (e: Exception) {
-                    android.util.Log.d("GrpcService", "Token validation failed, may need refresh: ${e.message}")
+                    android.util.Log.w("GrpcService", "Connection warmup timeout, will retry on first request: ${e.message}")
+                    // Don't throw - let individual requests handle connection
                 }
                 
             } catch (e: Exception) {
@@ -149,11 +144,68 @@ class GrpcService(private val context: Context) {
         }
     }
 
+    /**
+     * Check if gRPC connection is ready without waiting
+     * Useful for UI status indicators
+     */
+    fun isConnectionReady(): Boolean {
+        return channel.getState(false) == io.grpc.ConnectivityState.READY
+    }
+
+    /**
+     * Wait for gRPC connection to be ready before making requests
+     * Prevents hanging when app resumes and connection is not ready
+     */
+    private suspend fun waitForConnectionReady(timeoutMs: Long = 5000) {
+        val startTime = System.currentTimeMillis()
+        var attempts = 0
+        val maxAttempts = 50 // 5 seconds with 100ms intervals
+        
+        while (attempts < maxAttempts) {
+            val currentState = channel.getState(false)
+            
+            when (currentState) {
+                io.grpc.ConnectivityState.READY -> {
+                    android.util.Log.d("GrpcService", "Connection ready after ${attempts * 100}ms")
+                    return
+                }
+                io.grpc.ConnectivityState.IDLE -> {
+                    android.util.Log.d("GrpcService", "Connection idle, requesting connection")
+                    channel.getState(true) // Request connection
+                }
+                io.grpc.ConnectivityState.CONNECTING -> {
+                    android.util.Log.d("GrpcService", "Connection in progress, waiting...")
+                }
+                io.grpc.ConnectivityState.TRANSIENT_FAILURE -> {
+                    android.util.Log.w("GrpcService", "Connection failed, requesting reconnection")
+                    channel.getState(true) // Request reconnection
+                }
+                io.grpc.ConnectivityState.SHUTDOWN -> {
+                    throw IllegalStateException("gRPC channel is shutdown")
+                }
+            }
+            
+            kotlinx.coroutines.delay(100) // Wait 100ms between checks
+            attempts++
+            
+            // Check timeout
+            if (System.currentTimeMillis() - startTime > timeoutMs) {
+                android.util.Log.w("GrpcService", "Connection timeout after ${timeoutMs}ms, current state: $currentState")
+                throw Exception("Connection timeout: gRPC not ready after ${timeoutMs}ms")
+            }
+        }
+        
+        throw Exception("Connection failed: Maximum attempts reached")
+    }
+
     // ✅ UNARY METHOD: Fast search with better connection establishment
     suspend fun searchVehicle(
         searchType: String,
         searchValue: String
     ): List<VehicleResult> {
+        // ✅ WAIT FOR CONNECTION READY: Prevent hanging on app resume
+        waitForConnectionReady()
+        
         val request = when (searchType) {
             "nopol" -> Vehicle.VehicleSearchRequest.newBuilder()
                 .setNomorPolisi(searchValue)

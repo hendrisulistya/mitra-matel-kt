@@ -245,28 +245,32 @@ class GrpcHealthService(
     
     private suspend fun performHeartbeat() {
         try {
-            val request = Health.HeartbeatRequest.newBuilder()
+            // Use unary connection status check instead of streaming heartbeat
+            val request = Health.ConnectionStatusRequest.newBuilder()
                 .setClientId("android-client")
-                .setClientTimestamp(System.currentTimeMillis())
+                .setLastPing(System.currentTimeMillis())
                 .build()
                 
             val startTime = System.currentTimeMillis()
-
-            // Use streaming heartbeat for real-time monitoring with fresh token
-            getAuthenticatedStub().heartbeat(kotlinx.coroutines.flow.flowOf(request))
-                .collect { response ->
-                    val latency = System.currentTimeMillis() - startTime
-                    
-                    _connectionStatus.value = _connectionStatus.value.copy(
-                        isHealthy = response.connectionHealthy,
-                        latencyMs = latency,
-                        lastHeartbeat = System.currentTimeMillis(),
-                        serverVersion = response.serverId,
-                        errorMessage = null
-                    )
-                }
+            val response = getAuthenticatedStub().getConnectionStatus(request)
+            val latency = System.currentTimeMillis() - startTime
+            
+            _connectionStatus.value = _connectionStatus.value.copy(
+                isHealthy = response.state == Health.ConnectionStatusResponse.ConnectionState.CONNECTED,
+                latencyMs = latency,
+                lastHeartbeat = System.currentTimeMillis(),
+                serverVersion = response.serverVersion,
+                activeConnections = response.activeConnections,
+                errorMessage = null
+            )
+            
+            Log.d("GrpcHealthService", "Connection status check SUCCESS: ${latency}ms, state: ${response.state}")
         } catch (e: Exception) {
-            Log.e("GrpcHealthService", "Heartbeat failed: ${e.message}")
+            Log.e("GrpcHealthService", "Connection status check failed: ${e.message}")
+            _connectionStatus.value = _connectionStatus.value.copy(
+                isHealthy = false,
+                errorMessage = "Connection status check failed: ${e.message}"
+            )
         }
     }
 
