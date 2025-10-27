@@ -92,6 +92,7 @@ class SearchViewModel(private val grpcService: GrpcService) : ViewModel() {
         val startTime = System.currentTimeMillis()
         
         try {
+            // ✅ UNARY: Now using fast unary gRPC method for better connection establishment
             val results = grpcService.searchVehicle(
                 searchType = currentState.searchType,
                 searchValue = currentState.searchText

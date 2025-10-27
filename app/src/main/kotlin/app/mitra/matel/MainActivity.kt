@@ -26,6 +26,11 @@ class MainActivity : ComponentActivity() {
         }
     }
     
+    // Static reference to current gRPC service for lifecycle management
+    companion object {
+        var currentGrpcService: app.mitra.matel.network.GrpcService? = null
+    }
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
@@ -37,6 +42,20 @@ class MainActivity : ComponentActivity() {
             // Main App Content
             App()
         }
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        // Proactively warm up gRPC connection when app resumes
+        currentGrpcService?.let { grpcService ->
+            android.util.Log.d("MainActivity", "App resumed - warming up gRPC connection")
+            grpcService.warmUpConnection()
+        }
+    }
+    
+    override fun onPause() {
+        super.onPause()
+        android.util.Log.d("MainActivity", "App paused")
     }
     
     private fun requestPermissions() {

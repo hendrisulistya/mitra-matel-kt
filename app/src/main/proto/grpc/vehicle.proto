@@ -4,12 +4,18 @@ package grpc;
 
 option go_package = "github.com/JoSoft/mitra-matel/proto_gen/proto/grpc";
 
+// ==========================================================
+// Messages
+// ==========================================================
+
+// Request for vehicle search
 message VehicleSearchRequest {
   string nomor_polisi = 1;
   string nomor_rangka = 2;
   string nomor_mesin = 3;
 }
 
+// Basic vehicle info returned by the search
 message VehicleSearchResponse {
   string id = 1;
   string nomor_polisi = 2;
@@ -18,16 +24,17 @@ message VehicleSearchResponse {
   string finance_name = 5;
 }
 
+// Container for multiple vehicles (used in unary or batch response)
 message VehicleList {
   repeated VehicleSearchResponse vehicles = 1;
 }
 
-// Message to handle errors
+// Generic error wrapper
 message ErrorMessage {
   string error_message = 1;
 }
 
-// Wrapper message for all server responses
+// Unified response wrapper for all RPC types
 message Response {
   oneof payload {
     VehicleList vehicle_list = 1;
@@ -35,11 +42,32 @@ message Response {
   }
 }
 
-// gRPC service definition
+// ==========================================================
+// Service Definition
+// ==========================================================
+
 service VehicleSearchService {
-  // FAST: Unary call for simple searches
-  rpc SearchVehicleFast(VehicleSearchRequest) returns (VehicleList);
-  
-  // Keep streaming for real-time use cases
+  // -----------------------------
+  // 1️⃣ Unary RPC
+  // -----------------------------
+  // Single request → single response (list of vehicles)
+  rpc SearchVehicleUnary(VehicleSearchRequest) returns (VehicleList);
+
+  // -----------------------------
+  // 2️⃣ Server Streaming RPC
+  // -----------------------------
+  // Single request → stream of individual results
   rpc SearchVehicleStream(VehicleSearchRequest) returns (stream VehicleSearchResponse);
+
+  // -----------------------------
+  // 3️⃣ Client Streaming RPC
+  // -----------------------------
+  // Stream of requests → single combined response
+  rpc SearchVehicleBatch(stream VehicleSearchRequest) returns (VehicleList);
+
+  // -----------------------------
+  // 4️⃣ Bidirectional Streaming RPC
+  // -----------------------------
+  // Stream of requests ↔ stream of responses
+  rpc SearchVehicleBidirectional(stream VehicleSearchRequest) returns (stream VehicleSearchResponse);
 }

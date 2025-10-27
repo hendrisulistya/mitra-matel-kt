@@ -49,6 +49,11 @@ fun App() {
         val authViewModel = remember { AuthViewModel(context) }
         val grpcService = remember { GrpcService(context) }
         val searchViewModel = remember { SearchViewModel(grpcService) }
+        
+        // Register gRPC service with MainActivity for lifecycle management
+        LaunchedEffect(grpcService) {
+            app.mitra.matel.MainActivity.currentGrpcService = grpcService
+        }
         val navController = rememberNavController()
         
         var isInitializing by remember { mutableStateOf(true) }

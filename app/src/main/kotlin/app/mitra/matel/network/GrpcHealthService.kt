@@ -80,7 +80,7 @@ class GrpcHealthService(
     
     private var isMonitoring = false
     
-    private suspend fun checkHealth() {
+    suspend fun checkHealth() {
         try {
             // Try different service names that might be registered
             val serviceNames = listOf(
@@ -207,18 +207,18 @@ class GrpcHealthService(
                         ConnectivityState.READY -> {
                             // Only check health occasionally when connected
                             val timeSinceLastCheck = System.currentTimeMillis() - _connectionStatus.value.lastHeartbeat
-                            if (timeSinceLastCheck > 10000) { // Check every 10 seconds when READY
+                            if (timeSinceLastCheck > 15000) { // Check every 15 seconds when READY (reduced frequency)
                                 checkHealth()
                             }
-                            delay(2000) // Check state every 2 seconds when ready
+                            delay(3000) // Check state every 3 seconds when ready (reduced frequency)
                         }
                         ConnectivityState.CONNECTING -> {
-                            // More frequent checks during connection
+                            // Less frequent checks during connection to reduce overhead
                             _connectionStatus.value = _connectionStatus.value.copy(
                                 isHealthy = false,
                                 errorMessage = "Connecting..."
                             )
-                            delay(1000) // Check every 1 second when connecting
+                            delay(2000) // Check every 2 seconds when connecting (reduced overhead)
                         }
                         else -> {
                             // Less frequent checks when idle/failed

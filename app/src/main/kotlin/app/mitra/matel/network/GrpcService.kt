@@ -11,8 +11,7 @@ import io.grpc.stub.MetadataUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.toList
+// Removed streaming imports - using unary calls only
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -105,8 +104,52 @@ class GrpcService(private val context: Context) {
             }
         }
     }
+    
+    /**
+     * Proactively warm up the gRPC connection and validate token
+     * Call this when app resumes to reduce first search latency
+     */
+    fun warmUpConnection() {
+        scope.launch {
+            try {
+                android.util.Log.d("GrpcService", "Starting connection warmup...")
+                
+                // Force channel to connect if idle
+                val currentState = channel.getState(true)
+                android.util.Log.d("GrpcService", "Current channel state: $currentState")
+                
+                // Wait for connection to be ready (with timeout)
+                var attempts = 0
+                val maxAttempts = 10
+                while (attempts < maxAttempts) {
+                    val state = channel.getState(false)
+                    if (state == io.grpc.ConnectivityState.READY) {
+                        android.util.Log.d("GrpcService", "Channel ready after $attempts attempts")
+                        break
+                    }
+                    if (state == io.grpc.ConnectivityState.TRANSIENT_FAILURE) {
+                        android.util.Log.w("GrpcService", "Channel in failure state, requesting connection")
+                        channel.getState(true) // Request connection
+                    }
+                    kotlinx.coroutines.delay(100) // Wait 100ms between checks
+                    attempts++
+                }
+                
+                // Proactively check token validity with a lightweight health check
+                try {
+                    healthService.checkHealth()
+                    android.util.Log.d("GrpcService", "Token validation successful")
+                } catch (e: Exception) {
+                    android.util.Log.d("GrpcService", "Token validation failed, may need refresh: ${e.message}")
+                }
+                
+            } catch (e: Exception) {
+                android.util.Log.w("GrpcService", "Connection warmup failed: ${e.message}")
+            }
+        }
+    }
 
-    // OPTIMIZED: Direct method without Result wrapper and auth check
+    // ✅ UNARY METHOD: Fast search with better connection establishment
     suspend fun searchVehicle(
         searchType: String,
         searchValue: String
@@ -125,18 +168,17 @@ class GrpcService(private val context: Context) {
         }
         
         return try {
-            // ✅ CORRECT STREAMING METHOD: SearchVehicleStream with fresh token
-            getAuthenticatedStub().searchVehicleStream(request)
-                .map { response ->
-                    VehicleResult(
-                        id = response.id,
-                        nomorPolisi = response.nomorPolisi,
-                        tipeKendaraan = response.tipeKendaraan,
-                        dataVersion = response.dataVersion,
-                        financeName = response.financeName
-                    )
-                }
-                .toList()
+            // ✅ NEW UNARY METHOD: SearchVehicleUnary - faster connection establishment
+            val response = getAuthenticatedStub().searchVehicleUnary(request)
+            response.vehiclesList.map { vehicle ->
+                VehicleResult(
+                    id = vehicle.id,
+                    nomorPolisi = vehicle.nomorPolisi,
+                    tipeKendaraan = vehicle.tipeKendaraan,
+                    dataVersion = vehicle.dataVersion,
+                    financeName = vehicle.financeName
+                )
+            }
         } catch (e: StatusException) {
             // Handle token expiration specifically
             if (e.status.code == Status.Code.UNAUTHENTICATED) {
@@ -144,22 +186,21 @@ class GrpcService(private val context: Context) {
                 
                 val refreshed = refreshTokenIfPossible()
                 if (refreshed) {
-                    android.util.Log.d("GrpcService", "Token refreshed, retrying request")
+                    android.util.Log.d("GrpcService", "Token refreshed, retrying unary request")
                     // Retry with new token
                     try {
-                        getAuthenticatedStub().searchVehicleStream(request)
-                            .map { response ->
-                                VehicleResult(
-                                    id = response.id,
-                                    nomorPolisi = response.nomorPolisi,
-                                    tipeKendaraan = response.tipeKendaraan,
-                                    dataVersion = response.dataVersion,
-                                    financeName = response.financeName
-                                )
-                            }
-                            .toList()
+                        val retryResponse = getAuthenticatedStub().searchVehicleUnary(request)
+                        retryResponse.vehiclesList.map { vehicle ->
+                            VehicleResult(
+                                id = vehicle.id,
+                                nomorPolisi = vehicle.nomorPolisi,
+                                tipeKendaraan = vehicle.tipeKendaraan,
+                                dataVersion = vehicle.dataVersion,
+                                financeName = vehicle.financeName
+                            )
+                        }
                     } catch (retryException: Exception) {
-                        android.util.Log.e("GrpcService", "Retry failed: ${retryException.message}")
+                        android.util.Log.e("GrpcService", "Unary retry failed: ${retryException.message}")
                         emptyList()
                     }
                 } else {
@@ -168,11 +209,11 @@ class GrpcService(private val context: Context) {
                     emptyList()
                 }
             } else {
-                android.util.Log.e("GrpcService", "Search failed: ${e.message}")
+                android.util.Log.e("GrpcService", "Unary search failed: ${e.message}")
                 emptyList()
             }
         } catch (e: Exception) {
-            android.util.Log.e("GrpcService", "Search failed: ${e.message}")
+            android.util.Log.e("GrpcService", "Unary search failed: ${e.message}")
             emptyList()
         }
     }
