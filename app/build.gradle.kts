@@ -17,8 +17,8 @@ android {
         applicationId = "app.mitra.matel"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 3
-        versionName = "0.9.112"
+        versionCode = 5
+        versionName = "0.9.150"
         
         // Add build number that increments with each build
         buildConfigField("int", "BUILD_NUMBER", "${System.currentTimeMillis() / 1000}")
