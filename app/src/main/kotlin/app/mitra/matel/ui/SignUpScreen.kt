@@ -1,5 +1,6 @@
 package app.mitra.matel.ui
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -103,6 +105,147 @@ fun SignUpScreen(
     // Modal dialog states
     var showTermsModal by remember { mutableStateOf(false) }
     var showPrivacyModal by remember { mutableStateOf(false) }
+    
+    // Shake animation states
+    var shakeFullName by remember { mutableStateOf(false) }
+    var shakeEmail by remember { mutableStateOf(false) }
+    var shakePhoneNumber by remember { mutableStateOf(false) }
+    var shakePassword by remember { mutableStateOf(false) }
+    var shakeConfirmPassword by remember { mutableStateOf(false) }
+    var shakeAgreement by remember { mutableStateOf(false) }
+    
+    // Shake animation values
+    val shakeFullNameOffset by animateFloatAsState(
+        targetValue = if (shakeFullName) 1f else 0f,
+        animationSpec = if (shakeFullName) {
+            keyframes {
+                durationMillis = 500
+                0f at 0
+                -10f at 50
+                10f at 100
+                -8f at 150
+                8f at 200
+                -5f at 250
+                5f at 300
+                -2f at 350
+                2f at 400
+                0f at 500
+            }
+        } else {
+            tween(0)
+        },
+        finishedListener = { shakeFullName = false }
+    )
+    
+    val shakeEmailOffset by animateFloatAsState(
+        targetValue = if (shakeEmail) 1f else 0f,
+        animationSpec = if (shakeEmail) {
+            keyframes {
+                durationMillis = 500
+                0f at 0
+                -10f at 50
+                10f at 100
+                -8f at 150
+                8f at 200
+                -5f at 250
+                5f at 300
+                -2f at 350
+                2f at 400
+                0f at 500
+            }
+        } else {
+            tween(0)
+        },
+        finishedListener = { shakeEmail = false }
+    )
+    
+    val shakePhoneNumberOffset by animateFloatAsState(
+        targetValue = if (shakePhoneNumber) 1f else 0f,
+        animationSpec = if (shakePhoneNumber) {
+            keyframes {
+                durationMillis = 500
+                0f at 0
+                -10f at 50
+                10f at 100
+                -8f at 150
+                8f at 200
+                -5f at 250
+                5f at 300
+                -2f at 350
+                2f at 400
+                0f at 500
+            }
+        } else {
+            tween(0)
+        },
+        finishedListener = { shakePhoneNumber = false }
+    )
+    
+    val shakePasswordOffset by animateFloatAsState(
+        targetValue = if (shakePassword) 1f else 0f,
+        animationSpec = if (shakePassword) {
+            keyframes {
+                durationMillis = 500
+                0f at 0
+                -10f at 50
+                10f at 100
+                -8f at 150
+                8f at 200
+                -5f at 250
+                5f at 300
+                -2f at 350
+                2f at 400
+                0f at 500
+            }
+        } else {
+            tween(0)
+        },
+        finishedListener = { shakePassword = false }
+    )
+    
+    val shakeConfirmPasswordOffset by animateFloatAsState(
+        targetValue = if (shakeConfirmPassword) 1f else 0f,
+        animationSpec = if (shakeConfirmPassword) {
+            keyframes {
+                durationMillis = 500
+                0f at 0
+                -10f at 50
+                10f at 100
+                -8f at 150
+                8f at 200
+                -5f at 250
+                5f at 300
+                -2f at 350
+                2f at 400
+                0f at 500
+            }
+        } else {
+            tween(0)
+        },
+        finishedListener = { shakeConfirmPassword = false }
+    )
+    
+    val shakeAgreementOffset by animateFloatAsState(
+        targetValue = if (shakeAgreement) 1f else 0f,
+        animationSpec = if (shakeAgreement) {
+            keyframes {
+                durationMillis = 500
+                0f at 0
+                -10f at 50
+                10f at 100
+                -8f at 150
+                8f at 200
+                -5f at 250
+                5f at 300
+                -2f at 350
+                2f at 400
+                0f at 500
+            }
+        } else {
+            tween(0)
+        },
+        finishedListener = { shakeAgreement = false }
+    )
 
     // Handle registration state changes
     LaunchedEffect(registerState) {
@@ -125,99 +268,133 @@ fun SignUpScreen(
             .padding(horizontal = 24.dp, vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Header
-        Text(
-            text = "DAFTAR",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Form fields in a scrollable column with weight to fill available space
+        // Header section with proportional spacing
         Column(
             modifier = Modifier
-                .weight(1f)
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .weight(0.15f),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            // Full Name field - compact
+            Text(
+                text = "DAFTAR",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        // Form fields in a scrollable column with proportional weight
+        Column(
+            modifier = Modifier
+                .weight(0.7f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(top = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            // Full Name field - inline label with error messages as placeholder
             OutlinedTextField(
                 value = fullName,
                 onValueChange = { 
                     fullName = it
                     fullNameError = false // Clear error when user starts typing
                 },
-                label = { Text("Nama Lengkap", fontSize = 12.sp) },
-                placeholder = { Text("Nama lengkap", fontSize = 12.sp) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-                isError = fullNameError,
-                supportingText = if (fullNameError) {
-                    { Text("* Nama lengkap harus diisi", fontSize = 10.sp, color = MaterialTheme.colorScheme.error) }
-                } else null
-            )
-
-            // Email field - compact with validation
-            OutlinedTextField(
-                value = email,
-                onValueChange = { 
-                    email = it
-                    emailEmptyError = false // Clear empty error when user starts typing
-                    emailError = when {
-                        it.isEmpty() -> null
-                        !isValidEmail(it) -> "Format email tidak valid"
-                        !isAllowedEmailDomain(it) -> "Hanya menerima email dari Gmail, Yahoo, Outlook, dan domain umum lainnya"
-                        else -> null
-                    }
+                label = { Text("Nama Lengkap", fontSize = 11.sp) },
+                placeholder = { 
+                    Text(
+                        if (fullNameError) "* Nama lengkap harus diisi" else "Nama lengkap",
+                        fontSize = 11.sp,
+                        color = if (fullNameError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 },
-                label = { Text("Email", fontSize = 12.sp) },
-                placeholder = { Text("contoh@gmail.com", fontSize = 12.sp) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-                isError = emailError != null || emailEmptyError,
-                supportingText = when {
-                    emailEmptyError -> {
-                        { Text("* Email harus diisi", fontSize = 10.sp, color = MaterialTheme.colorScheme.error) }
-                    }
-                    emailError != null -> {
-                        { Text(emailError!!, fontSize = 10.sp, color = MaterialTheme.colorScheme.error) }
-                    }
-                    else -> {
-                        { Text("Gunakan email dari Gmail, Yahoo, Outlook, dll", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                    }
-                }
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        translationX = shakeFullNameOffset * 10f
+                    },
+                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                isError = fullNameError
             )
 
-            // Phone Number field - compact
+            // Email field - inline label with error messages below field
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        translationX = shakeEmailOffset * 10f
+                    }
+            ) {
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { 
+                        email = it
+                        emailEmptyError = false // Clear empty error when user starts typing
+                        emailError = when {
+                            it.isEmpty() -> null
+                            !isValidEmail(it) -> "Format email tidak valid"
+                            !isAllowedEmailDomain(it) -> "Hanya menerima email dari Gmail, Yahoo, Outlook, dan domain umum lainnya"
+                            else -> null
+                        }
+                    },
+                    label = { Text("Email", fontSize = 11.sp) },
+                    placeholder = { 
+                        Text(
+                            if (emailEmptyError) "* Email harus diisi" else "contoh@gmail.com",
+                            fontSize = 11.sp,
+                            color = if (emailEmptyError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                    isError = emailError != null || emailEmptyError
+                )
+                
+                // Error message below field for email validation errors
+                if (emailError != null) {
+                    Text(
+                        text = emailError!!,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
+                        modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                    )
+                }
+            }
+
+            // Phone Number field - inline label with error messages as placeholder
             OutlinedTextField(
                 value = phoneNumber,
                 onValueChange = { 
                     phoneNumber = it
                     phoneNumberError = false // Clear error when user starts typing
                 },
-                label = { Text("Nomor Telepon", fontSize = 12.sp) },
-                placeholder = { Text("08xxxxxxxxxx", fontSize = 12.sp) },
+                label = { Text("Nomor Telepon", fontSize = 11.sp) },
+                placeholder = { 
+                    Text(
+                        if (phoneNumberError) "* Nomor telepon harus diisi" else "08xxxxxxxxxx",
+                        fontSize = 11.sp,
+                        color = if (phoneNumberError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-                isError = phoneNumberError,
-                supportingText = if (phoneNumberError) {
-                    { Text("* Nomor telepon harus diisi", fontSize = 10.sp, color = MaterialTheme.colorScheme.error) }
-                } else null
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        translationX = shakePhoneNumberOffset * 10f
+                    },
+                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                isError = phoneNumberError
             )
 
-            // Password field - compact with validation
+            // Password field - inline label with error messages as placeholder
             OutlinedTextField(
                 value = password,
                 onValueChange = { 
                     password = it
-                    passwordEmptyError = false // Clear empty error when user starts typing
+                    passwordEmptyError = false // Clear error when user starts typing
                     passwordError = when {
                         it.isEmpty() -> null
                         it.length < 6 -> "Kata sandi minimal 6 karakter"
@@ -230,33 +407,39 @@ fun SignUpScreen(
                         } else null
                     }
                 },
-                label = { Text("Kata Sandi", fontSize = 12.sp) },
-                placeholder = { Text("Minimal 6 karakter", fontSize = 12.sp) },
+                label = { Text("Kata Sandi", fontSize = 11.sp) },
+                placeholder = { 
+                    Text(
+                        when {
+                            passwordEmptyError -> "* Kata sandi harus diisi"
+                            passwordError != null -> passwordError!!
+                            else -> "Minimal 6 karakter"
+                        },
+                        fontSize = 11.sp,
+                        color = when {
+                            passwordEmptyError || passwordError != null -> MaterialTheme.colorScheme.error
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                },
                 trailingIcon = {
                     TextButton(onClick = { passwordVisible = !passwordVisible }) {
-                        Text(if (passwordVisible) "Hide" else "Show", fontSize = 10.sp)
+                        Text(if (passwordVisible) "Hide" else "Show", fontSize = 9.sp)
                     }
                 },
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-                isError = passwordError != null || passwordEmptyError,
-                supportingText = when {
-                    passwordEmptyError -> {
-                        { Text("* Kata sandi harus diisi", fontSize = 10.sp, color = MaterialTheme.colorScheme.error) }
-                    }
-                    passwordError != null -> {
-                        { Text(passwordError!!, fontSize = 10.sp, color = MaterialTheme.colorScheme.error) }
-                    }
-                    else -> {
-                        { Text("Gunakan minimal 6 karakter", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                    }
-                }
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        translationX = shakePasswordOffset * 10f
+                    },
+                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                isError = passwordError != null || passwordEmptyError
             )
 
-            // Confirm Password field - compact with validation
+            // Confirm Password field - inline label with error messages as placeholder
             OutlinedTextField(
                 value = confirmPassword,
                 onValueChange = { 
@@ -268,34 +451,44 @@ fun SignUpScreen(
                         else -> null
                     }
                 },
-                label = { Text("Konfirmasi Kata Sandi", fontSize = 12.sp) },
-                placeholder = { Text("Konfirmasi kata sandi", fontSize = 12.sp) },
+                label = { Text("Konfirmasi Kata Sandi", fontSize = 11.sp) },
+                placeholder = { 
+                    Text(
+                        when {
+                            confirmPasswordEmptyError -> "* Konfirmasi kata sandi harus diisi"
+                            confirmPasswordError != null -> confirmPasswordError!!
+                            else -> "Konfirmasi kata sandi"
+                        },
+                        fontSize = 11.sp,
+                        color = when {
+                            confirmPasswordEmptyError || confirmPasswordError != null -> MaterialTheme.colorScheme.error
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                },
                 trailingIcon = {
                     TextButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
-                        Text(if (confirmPasswordVisible) "Hide" else "Show", fontSize = 10.sp)
+                        Text(if (confirmPasswordVisible) "Hide" else "Show", fontSize = 9.sp)
                     }
                 },
                 visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-                isError = confirmPasswordError != null || confirmPasswordEmptyError,
-                supportingText = when {
-                    confirmPasswordEmptyError -> {
-                        { Text("* Konfirmasi kata sandi harus diisi", fontSize = 10.sp, color = MaterialTheme.colorScheme.error) }
-                    }
-                    confirmPasswordError != null -> {
-                        { Text(confirmPasswordError!!, fontSize = 10.sp, color = MaterialTheme.colorScheme.error) }
-                    }
-                    else -> null
-                }
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        translationX = shakeConfirmPasswordOffset * 10f
+                    },
+                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                isError = confirmPasswordError != null || confirmPasswordEmptyError
             )
         }
 
-        // Bottom section - compact
+        // Bottom section with increased weight for visibility
         Column(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(0.25f),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -322,7 +515,11 @@ fun SignUpScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer {
+                            translationX = shakeAgreementOffset * 10f
+                        },
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Start
                 ) {
@@ -385,16 +582,6 @@ fun SignUpScreen(
                         modifier = Modifier.weight(1f)
                     )
                 }
-                
-                // Error message for agreement checkbox
-                if (agreementError) {
-                    Text(
-                        text = "* Anda harus menyetujui syarat dan ketentuan serta kebijakan privasi",
-                        fontSize = 10.sp,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(start = 40.dp, top = 4.dp)
-                    )
-                }
             }
 
             // Daftar Button
@@ -410,36 +597,42 @@ fun SignUpScreen(
                     confirmPasswordEmptyError = false
                     agreementError = false
                     
-                    // Check for empty fields and highlight them
+                    // Check for empty fields and highlight them with shake animation
                     var hasEmptyFields = false
                     
                     if (fullName.isBlank()) {
                         fullNameError = true
+                        shakeFullName = true
                         hasEmptyFields = true
                     }
                     
                     if (phoneNumber.isBlank()) {
                         phoneNumberError = true
+                        shakePhoneNumber = true
                         hasEmptyFields = true
                     }
                     
                     if (email.isBlank()) {
                         emailEmptyError = true
+                        shakeEmail = true
                         hasEmptyFields = true
                     }
                     
                     if (password.isBlank()) {
                         passwordEmptyError = true
+                        shakePassword = true
                         hasEmptyFields = true
                     }
                     
                     if (confirmPassword.isBlank()) {
                         confirmPasswordEmptyError = true
+                        shakeConfirmPassword = true
                         hasEmptyFields = true
                     }
                     
                     if (!isAgreementChecked) {
                         agreementError = true
+                        shakeAgreement = true
                         hasEmptyFields = true
                     }
                     
@@ -486,7 +679,7 @@ fun SignUpScreen(
                 }
             }
 
-            // Sign In link
+            // Sign In link - positioned below Daftar button
             Text(
                 text = "Sudah Punya Akun? Masuk",
                 style = MaterialTheme.typography.bodyMedium,
