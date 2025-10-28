@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -16,18 +17,26 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.mitra.matel.R
+import app.mitra.matel.ui.screens.TermOfServiceContent
+import app.mitra.matel.ui.screens.PrivacyPolicyContent
 import app.mitra.matel.viewmodel.AuthViewModel
 import app.mitra.matel.viewmodel.RegisterState
 
@@ -79,6 +88,21 @@ fun SignUpScreen(
     
     // Email validation state
     var emailError by remember { mutableStateOf<String?>(null) }
+    
+    // Field validation states for highlighting empty fields
+    var fullNameError by remember { mutableStateOf(false) }
+    var phoneNumberError by remember { mutableStateOf(false) }
+    var emailEmptyError by remember { mutableStateOf(false) }
+    var passwordEmptyError by remember { mutableStateOf(false) }
+    var confirmPasswordEmptyError by remember { mutableStateOf(false) }
+    
+    // Agreement checkbox state
+    var isAgreementChecked by remember { mutableStateOf(false) }
+    var agreementError by remember { mutableStateOf(false) }
+    
+    // Modal dialog states
+    var showTermsModal by remember { mutableStateOf(false) }
+    var showPrivacyModal by remember { mutableStateOf(false) }
 
     // Handle registration state changes
     LaunchedEffect(registerState) {
@@ -101,24 +125,6 @@ fun SignUpScreen(
             .padding(horizontal = 24.dp, vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Logo
-        Box(
-            modifier = Modifier
-                .size(100.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Image(
-                painter = painterResource(id = R.raw.mmi_logo),
-                contentDescription = "MMI Logo",
-                modifier = Modifier
-                    .size(100.dp)
-                    .clip(CircleShape),
-                contentScale = ContentScale.Crop
-            )
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
         // Header
         Text(
             text = "DAFTAR",
@@ -128,133 +134,163 @@ fun SignUpScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Form fields in a column with weight to fill available space
+        // Form fields in a scrollable column with weight to fill available space
         Column(
             modifier = Modifier
                 .weight(1f)
-                .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Full Name field - compact
             OutlinedTextField(
                 value = fullName,
-                onValueChange = { fullName = it },
+                onValueChange = { 
+                    fullName = it
+                    fullNameError = false // Clear error when user starts typing
+                },
                 label = { Text("Nama Lengkap", fontSize = 12.sp) },
                 placeholder = { Text("Nama lengkap", fontSize = 12.sp) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp)
+                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                isError = fullNameError,
+                supportingText = if (fullNameError) {
+                    { Text("* Nama lengkap harus diisi", fontSize = 10.sp, color = MaterialTheme.colorScheme.error) }
+                } else null
             )
 
             // Email field - compact with validation
-            Column {
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = { 
-                        email = it
-                        emailError = when {
-                            it.isEmpty() -> null
-                            !isValidEmail(it) -> "Format email tidak valid"
-                            !isAllowedEmailDomain(it) -> "Hanya menerima email dari Gmail, Yahoo, Outlook, dan domain umum lainnya"
-                            else -> null
-                        }
-                    },
-                    label = { Text("Email", fontSize = 12.sp) },
-                    placeholder = { Text("contoh@gmail.com", fontSize = 12.sp) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-                    isError = emailError != null,
-                    supportingText = emailError?.let { 
-                        { Text(it, fontSize = 10.sp, color = MaterialTheme.colorScheme.error) }
-                    } ?: {
-                        Text("Gunakan email dari Gmail, Yahoo, Outlook, dll", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedTextField(
+                value = email,
+                onValueChange = { 
+                    email = it
+                    emailEmptyError = false // Clear empty error when user starts typing
+                    emailError = when {
+                        it.isEmpty() -> null
+                        !isValidEmail(it) -> "Format email tidak valid"
+                        !isAllowedEmailDomain(it) -> "Hanya menerima email dari Gmail, Yahoo, Outlook, dan domain umum lainnya"
+                        else -> null
                     }
-                )
-            }
+                },
+                label = { Text("Email", fontSize = 12.sp) },
+                placeholder = { Text("contoh@gmail.com", fontSize = 12.sp) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                isError = emailError != null || emailEmptyError,
+                supportingText = when {
+                    emailEmptyError -> {
+                        { Text("* Email harus diisi", fontSize = 10.sp, color = MaterialTheme.colorScheme.error) }
+                    }
+                    emailError != null -> {
+                        { Text(emailError!!, fontSize = 10.sp, color = MaterialTheme.colorScheme.error) }
+                    }
+                    else -> {
+                        { Text("Gunakan email dari Gmail, Yahoo, Outlook, dll", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    }
+                }
+            )
 
             // Phone Number field - compact
             OutlinedTextField(
                 value = phoneNumber,
-                onValueChange = { phoneNumber = it },
+                onValueChange = { 
+                    phoneNumber = it
+                    phoneNumberError = false // Clear error when user starts typing
+                },
                 label = { Text("Nomor Telepon", fontSize = 12.sp) },
                 placeholder = { Text("08xxxxxxxxxx", fontSize = 12.sp) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp)
+                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                isError = phoneNumberError,
+                supportingText = if (phoneNumberError) {
+                    { Text("* Nomor telepon harus diisi", fontSize = 10.sp, color = MaterialTheme.colorScheme.error) }
+                } else null
             )
 
             // Password field - compact with validation
-            Column {
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { 
-                        password = it
-                        passwordError = when {
-                            it.isEmpty() -> null
-                            it.length < 6 -> "Kata sandi minimal 6 karakter"
-                            else -> null
-                        }
-                        // Re-validate confirm password if it's not empty
-                        if (confirmPassword.isNotEmpty()) {
-                            confirmPasswordError = if (confirmPassword != it) {
-                                "Konfirmasi kata sandi tidak cocok"
-                            } else null
-                        }
-                    },
-                    label = { Text("Kata Sandi", fontSize = 12.sp) },
-                    placeholder = { Text("Minimal 6 karakter", fontSize = 12.sp) },
-                    trailingIcon = {
-                        TextButton(onClick = { passwordVisible = !passwordVisible }) {
-                            Text(if (passwordVisible) "Hide" else "Show", fontSize = 10.sp)
-                        }
-                    },
-                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-                    isError = passwordError != null,
-                    supportingText = passwordError?.let { 
-                        { Text(it, fontSize = 10.sp, color = MaterialTheme.colorScheme.error) }
-                    } ?: {
-                        Text("Gunakan minimal 6 karakter", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            OutlinedTextField(
+                value = password,
+                onValueChange = { 
+                    password = it
+                    passwordEmptyError = false // Clear empty error when user starts typing
+                    passwordError = when {
+                        it.isEmpty() -> null
+                        it.length < 6 -> "Kata sandi minimal 6 karakter"
+                        else -> null
                     }
-                )
-            }
+                    // Re-validate confirm password if it's not empty
+                    if (confirmPassword.isNotEmpty()) {
+                        confirmPasswordError = if (confirmPassword != it) {
+                            "Konfirmasi kata sandi tidak cocok"
+                        } else null
+                    }
+                },
+                label = { Text("Kata Sandi", fontSize = 12.sp) },
+                placeholder = { Text("Minimal 6 karakter", fontSize = 12.sp) },
+                trailingIcon = {
+                    TextButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Text(if (passwordVisible) "Hide" else "Show", fontSize = 10.sp)
+                    }
+                },
+                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                isError = passwordError != null || passwordEmptyError,
+                supportingText = when {
+                    passwordEmptyError -> {
+                        { Text("* Kata sandi harus diisi", fontSize = 10.sp, color = MaterialTheme.colorScheme.error) }
+                    }
+                    passwordError != null -> {
+                        { Text(passwordError!!, fontSize = 10.sp, color = MaterialTheme.colorScheme.error) }
+                    }
+                    else -> {
+                        { Text("Gunakan minimal 6 karakter", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    }
+                }
+            )
 
             // Confirm Password field - compact with validation
-            Column {
-                OutlinedTextField(
-                    value = confirmPassword,
-                    onValueChange = { 
-                        confirmPassword = it
-                        confirmPasswordError = when {
-                            it.isEmpty() -> null
-                            it != password -> "Konfirmasi kata sandi tidak cocok"
-                            else -> null
-                        }
-                    },
-                    label = { Text("Konfirmasi Kata Sandi", fontSize = 12.sp) },
-                    placeholder = { Text("Konfirmasi kata sandi", fontSize = 12.sp) },
-                    trailingIcon = {
-                        TextButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
-                            Text(if (confirmPasswordVisible) "Hide" else "Show", fontSize = 10.sp)
-                        }
-                    },
-                    visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
-                    isError = confirmPasswordError != null,
-                    supportingText = confirmPasswordError?.let { 
-                        { Text(it, fontSize = 10.sp, color = MaterialTheme.colorScheme.error) }
+            OutlinedTextField(
+                value = confirmPassword,
+                onValueChange = { 
+                    confirmPassword = it
+                    confirmPasswordEmptyError = false // Clear empty error when user starts typing
+                    confirmPasswordError = when {
+                        it.isEmpty() -> null
+                        it != password -> "Konfirmasi kata sandi tidak cocok"
+                        else -> null
                     }
-                )
-            }
+                },
+                label = { Text("Konfirmasi Kata Sandi", fontSize = 12.sp) },
+                placeholder = { Text("Konfirmasi kata sandi", fontSize = 12.sp) },
+                trailingIcon = {
+                    TextButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                        Text(if (confirmPasswordVisible) "Hide" else "Show", fontSize = 10.sp)
+                    }
+                },
+                visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp),
+                isError = confirmPasswordError != null || confirmPasswordEmptyError,
+                supportingText = when {
+                    confirmPasswordEmptyError -> {
+                        { Text("* Konfirmasi kata sandi harus diisi", fontSize = 10.sp, color = MaterialTheme.colorScheme.error) }
+                    }
+                    confirmPasswordError != null -> {
+                        { Text(confirmPasswordError!!, fontSize = 10.sp, color = MaterialTheme.colorScheme.error) }
+                    }
+                    else -> null
+                }
+            )
         }
 
         // Bottom section - compact
@@ -281,35 +317,141 @@ fun SignUpScreen(
                 }
             }
 
+            // Agreement checkbox
+            Column(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Start
+                ) {
+                    Checkbox(
+                        checked = isAgreementChecked,
+                        onCheckedChange = { 
+                            isAgreementChecked = it
+                            agreementError = false // Clear error when checked
+                        },
+                        modifier = Modifier.padding(end = 8.dp),
+                        colors = CheckboxDefaults.colors(
+                            uncheckedColor = if (agreementError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    )
+                    
+                    val annotatedText = buildAnnotatedString {
+                        append("Dengan ini saya bersedia mematuhi ")
+                        
+                        pushStringAnnotation(tag = "terms", annotation = "terms")
+                        withStyle(
+                            style = SpanStyle(
+                                color = MaterialTheme.colorScheme.primary,
+                                textDecoration = TextDecoration.Underline
+                            )
+                        ) {
+                            append("syarat dan ketentuan")
+                        }
+                        pop()
+                        
+                        append(" serta ")
+                        
+                        pushStringAnnotation(tag = "privacy", annotation = "privacy")
+                        withStyle(
+                            style = SpanStyle(
+                                color = MaterialTheme.colorScheme.primary,
+                                textDecoration = TextDecoration.Underline
+                            )
+                        ) {
+                            append("kebijakan privasi")
+                        }
+                        pop()
+                    }
+                    
+                    ClickableText(
+                        text = annotatedText,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp
+                        ),
+                        onClick = { offset ->
+                            annotatedText.getStringAnnotations(tag = "terms", start = offset, end = offset)
+                                .firstOrNull()?.let {
+                                    showTermsModal = true
+                                }
+                            annotatedText.getStringAnnotations(tag = "privacy", start = offset, end = offset)
+                                .firstOrNull()?.let {
+                                    showPrivacyModal = true
+                                }
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                
+                // Error message for agreement checkbox
+                if (agreementError) {
+                    Text(
+                        text = "* Anda harus menyetujui syarat dan ketentuan serta kebijakan privasi",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(start = 40.dp, top = 4.dp)
+                    )
+                }
+            }
+
             // Daftar Button
             Button(
                 onClick = {
                     errorMessage = null
                     
-                    // Validate all fields
-                    when {
-                        fullName.isBlank() || email.isBlank() || phoneNumber.isBlank() || 
-                        password.isBlank() || confirmPassword.isBlank() -> {
-                            errorMessage = "Semua field harus diisi"
-                        }
-                        !isValidEmail(email) -> {
-                            errorMessage = "Format email tidak valid"
-                        }
-                        !isAllowedEmailDomain(email) -> {
-                            errorMessage = "Email harus menggunakan domain yang diizinkan (Gmail, Yahoo, Outlook, dll)"
-                        }
-                        password.length < 6 -> {
-                            errorMessage = "Kata sandi minimal 6 karakter"
-                        }
-                        password != confirmPassword -> {
-                            errorMessage = "Konfirmasi kata sandi tidak cocok"
-                        }
-                        emailError != null || passwordError != null || confirmPasswordError != null -> {
-                            errorMessage = "Mohon perbaiki kesalahan pada form"
-                        }
-                        else -> {
-                            viewModel.register(fullName, email, phoneNumber, password, confirmPassword)
-                        }
+                    // Reset all field errors
+                    fullNameError = false
+                    phoneNumberError = false
+                    emailEmptyError = false
+                    passwordEmptyError = false
+                    confirmPasswordEmptyError = false
+                    agreementError = false
+                    
+                    // Check for empty fields and highlight them
+                    var hasEmptyFields = false
+                    
+                    if (fullName.isBlank()) {
+                        fullNameError = true
+                        hasEmptyFields = true
+                    }
+                    
+                    if (phoneNumber.isBlank()) {
+                        phoneNumberError = true
+                        hasEmptyFields = true
+                    }
+                    
+                    if (email.isBlank()) {
+                        emailEmptyError = true
+                        hasEmptyFields = true
+                    }
+                    
+                    if (password.isBlank()) {
+                        passwordEmptyError = true
+                        hasEmptyFields = true
+                    }
+                    
+                    if (confirmPassword.isBlank()) {
+                        confirmPasswordEmptyError = true
+                        hasEmptyFields = true
+                    }
+                    
+                    if (!isAgreementChecked) {
+                        agreementError = true
+                        hasEmptyFields = true
+                    }
+                    
+                    // Check for validation errors
+                    val hasValidationErrors = emailError != null || passwordError != null || confirmPasswordError != null
+                    
+                    if (hasEmptyFields || hasValidationErrors) {
+                        // Don't proceed if any field has errors
+                        return@Button
+                    } else {
+                        // All validations passed
+                        viewModel.register(fullName, email, phoneNumber, password, confirmPassword)
                     }
                 },
                 enabled = registerState !is RegisterState.Loading,
@@ -352,25 +494,6 @@ fun SignUpScreen(
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.clickable { onNavigateToSignIn() }
             )
-
-            // Disclaimer box - compact
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Text(
-                    text = "Dengan mendaftar, Anda menyetujui Syarat dan Ketentuan serta Kebijakan Privasi kami.",
-                    modifier = Modifier.padding(10.dp),
-                    style = MaterialTheme.typography.bodySmall,
-                    fontSize = 9.sp,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
         }
     }
 
@@ -402,6 +525,62 @@ fun SignUpScreen(
                     }
                 ) {
                     Text("Masuk Sekarang")
+                }
+            }
+        )
+    }
+
+    // Terms of Service Modal
+    if (showTermsModal) {
+        AlertDialog(
+            onDismissRequest = { showTermsModal = false },
+            title = {
+                Text(
+                    text = "Syarat dan Ketentuan",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(400.dp)
+                ) {
+                    TermOfServiceContent()
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showTermsModal = false }) {
+                    Text("Tutup")
+                }
+            }
+        )
+    }
+
+    // Privacy Policy Modal
+    if (showPrivacyModal) {
+        AlertDialog(
+            onDismissRequest = { showPrivacyModal = false },
+            title = {
+                Text(
+                    text = "Kebijakan Privasi",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(400.dp)
+                ) {
+                    PrivacyPolicyContent()
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showPrivacyModal = false }) {
+                    Text("Tutup")
                 }
             }
         )

@@ -212,8 +212,8 @@ fun App() {
                 DashboardScreen(
                     searchViewModel = searchViewModel,
                     onLogout = {
-                        // Clear session on logout
-                        sessionManager.clearSession()
+                        // Clear session and saved credentials on logout
+                        sessionManager.clearAll()  // Clear everything including saved credentials
                         authViewModel.resetState()
 
                         // Navigate to welcome and clear back stack
