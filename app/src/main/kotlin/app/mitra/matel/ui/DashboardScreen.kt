@@ -35,7 +35,10 @@ fun DashboardScreen(
     onLogout: () -> Unit,
     onNavigateToMicSearch: () -> Unit = {},
     onNavigateToVehicleDetail: (String) -> Unit = {},
-    onNavigateBack: () -> Unit = {}
+    onNavigateBack: () -> Unit = {},
+    onNavigateToTerms: () -> Unit = {},
+    onNavigateToPrivacy: () -> Unit = {},
+    initialSelectedMenuItem: String? = null
 ) {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
@@ -77,7 +80,7 @@ fun DashboardScreen(
             else -> {}
         }
     }
-    var selectedMenuItem by remember { mutableStateOf<String?>(null) }
+    var selectedMenuItem by remember { mutableStateOf<String?>(initialSelectedMenuItem) }
     var isSidebarVisible by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showAnnouncement by remember { mutableStateOf(!sessionManager.isAnnouncementDismissed()) }
@@ -310,7 +313,10 @@ fun DashboardScreen(
                         )
                         "Aktivasi & Pembayaran" -> PaymentAndActivationContent()
                         "Riwayat Pembayaran" -> PaymentHistoryContent()
-                        "About" -> AboutContent()
+                        "About" -> AboutContent(
+                            onTermsClick = onNavigateToTerms,
+                            onPrivacyClick = onNavigateToPrivacy
+                        )
                         "Setting" -> SettingsContent()
                     }
                 }
@@ -555,7 +561,9 @@ fun DashboardScreenPreview() {
         DashboardScreen(
             searchViewModel = searchViewModel,
             onLogout = {},
-            onNavigateToMicSearch = {}
+            onNavigateToMicSearch = {},
+            onNavigateToTerms = {},
+            onNavigateToPrivacy = {}
         )
     }
 }

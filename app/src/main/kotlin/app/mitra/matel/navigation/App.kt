@@ -33,6 +33,8 @@ import app.mitra.matel.ui.WelcomeScreen
 import app.mitra.matel.ui.DashboardScreen
 import app.mitra.matel.ui.screens.MicSearchContent
 import app.mitra.matel.ui.screens.VehicleDetailContent
+import app.mitra.matel.ui.screens.TermOfServiceScreen
+import app.mitra.matel.ui.screens.PrivacyPolicyScreen
 import app.mitra.matel.utils.SessionManager
 import app.mitra.matel.viewmodel.AuthViewModel
 import app.mitra.matel.viewmodel.AuthState
@@ -229,6 +231,54 @@ fun App() {
                         navController.navigate("dashboard") {
                             popUpTo("dashboard") { inclusive = true }
                         }
+                    },
+                    onNavigateToTerms = {
+                        navController.navigate("terms_of_service")
+                    },
+                    onNavigateToPrivacy = {
+                        navController.navigate("privacy_policy")
+                    }
+                )
+            }
+
+            composable(
+                route = "dashboard/about",
+                enterTransition = {
+                    fadeIn(animationSpec = tween(300))
+                },
+                exitTransition = {
+                    fadeOut(animationSpec = tween(250))
+                }
+            ) {
+                DashboardScreen(
+                    searchViewModel = searchViewModel,
+                    initialSelectedMenuItem = "About",
+                    onLogout = {
+                        // Clear session on logout
+                        sessionManager.clearSession()
+                        authViewModel.resetState()
+
+                        // Navigate to welcome and clear back stack
+                        navController.navigate("welcome") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    },
+                    onNavigateToMicSearch = {
+                        navController.navigate("mic_search")
+                    },
+                    onNavigateToVehicleDetail = { vehicleId ->
+                        navController.navigate("vehicle_detail/$vehicleId")
+                    },
+                    onNavigateBack = {
+                        navController.navigate("dashboard") {
+                            popUpTo("dashboard") { inclusive = true }
+                        }
+                    },
+                    onNavigateToTerms = {
+                        navController.navigate("terms_of_service")
+                    },
+                    onNavigateToPrivacy = {
+                        navController.navigate("privacy_policy")
                     }
                 )
             }
@@ -280,6 +330,54 @@ fun App() {
                 VehicleDetailContent(
                     vehicleId = vehicleId,
                     onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(
+                route = "terms_of_service",
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(300)
+                    ) + fadeIn(animationSpec = tween(300))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(250)
+                    ) + fadeOut(animationSpec = tween(250))
+                }
+            ) {
+                TermOfServiceScreen(
+                    onBackClick = { 
+                        navController.navigate("dashboard/about") {
+                            popUpTo("dashboard") { inclusive = true }
+                        }
+                    }
+                )
+            }
+
+            composable(
+                route = "privacy_policy",
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = tween(300)
+                    ) + fadeIn(animationSpec = tween(300))
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = tween(250)
+                    ) + fadeOut(animationSpec = tween(250))
+                }
+            ) {
+                PrivacyPolicyScreen(
+                    onBackClick = { 
+                        navController.navigate("dashboard/about") {
+                            popUpTo("dashboard") { inclusive = true }
+                        }
+                    }
                 )
             }
             }

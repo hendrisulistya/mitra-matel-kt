@@ -18,7 +18,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import android.util.Log
 import app.mitra.matel.utils.SessionManager
 import app.mitra.matel.network.models.LoginRequest
 import app.mitra.matel.network.models.LoginResponse
@@ -113,20 +112,14 @@ class GrpcHealthService(
                             errorMessage = null
                         )
                         
-                        Log.d("GrpcHealthService", "Health check SUCCESS for '$serviceName': ${latency}ms")
                         healthCheckSucceeded = true
                         break
-                    } else {
-                        Log.w("GrpcHealthService", "Service '$serviceName' not serving: ${response.status}")
                     }
                 } catch (e: StatusException) {
                     // Handle token expiration specifically
                     if (e.status.code == Status.Code.UNAUTHENTICATED) {
-                        Log.d("GrpcHealthService", "Token expired during health check, attempting refresh")
-                        
                         val refreshed = refreshTokenIfPossible()
                         if (refreshed) {
-                            Log.d("GrpcHealthService", "Token refreshed, retrying health check")
                             // Retry with new token
                             try {
                                 val retryRequest = Health.HealthCheckRequest.newBuilder()
@@ -145,22 +138,17 @@ class GrpcHealthService(
                                         lastHeartbeat = System.currentTimeMillis(),
                                         errorMessage = null
                                     )
-                                    Log.d("GrpcHealthService", "Health check SUCCESS for '$serviceName' after token refresh: ${latency}ms")
                                     healthCheckSucceeded = true
                                     break
                                 }
                             } catch (retryException: Exception) {
-                                Log.e("GrpcHealthService", "Health check retry failed: ${retryException.message}")
+                                // Health check retry failed
                             }
                         } else {
-                            Log.w("GrpcHealthService", "Token refresh failed during health check")
                             sessionManager.clearSession()
                         }
-                    } else {
-                        Log.w("GrpcHealthService", "Health check failed for '$serviceName': ${e.message}")
                     }
                 } catch (e: Exception) {
-                    Log.w("GrpcHealthService", "Health check failed for '$serviceName': ${e.message}")
                     // Continue to next service name
                 }
             }
@@ -169,17 +157,15 @@ class GrpcHealthService(
                 _connectionStatus.value = _connectionStatus.value.copy(
                     isHealthy = false,
                     latencyMs = latency,
-                    errorMessage = "All health checks failed"
+                    errorMessage = "Service unavailable"
                 )
-                Log.e("GrpcHealthService", "All health check attempts failed")
             }
             
         } catch (e: Exception) {
-            Log.e("GrpcHealthService", "Health check error: ${e.message}")
             _connectionStatus.value = _connectionStatus.value.copy(
                 isHealthy = false,
                 latencyMs = 0L,
-                errorMessage = "Health check failed: ${e.message}"
+                errorMessage = "Connection failed"
             )
         }
     }
@@ -187,8 +173,6 @@ class GrpcHealthService(
     fun startMonitoring() {
         if (isMonitoring) return
         isMonitoring = true
-        
-        Log.d("GrpcHealthService", "Starting gRPC health monitoring")
         
         scope.launch {
             while (isActive) {
@@ -198,7 +182,6 @@ class GrpcHealthService(
                     
                     // Only update if state changed
                     if (currentState != previousState) {
-                        Log.d("GrpcHealthService", "Connection state changed: $previousState -> $currentState")
                         _connectionStatus.value = _connectionStatus.value.copy(state = currentState)
                     }
                     
@@ -225,17 +208,16 @@ class GrpcHealthService(
                             _connectionStatus.value = _connectionStatus.value.copy(
                                 isHealthy = false,
                                 latencyMs = 0L,
-                                errorMessage = "Connection not ready: $currentState"
+                                errorMessage = "Connection unavailable"
                             )
                             delay(5000) // Check every 5 seconds when not ready
                         }
                     }
                     
                 } catch (e: Exception) {
-                    Log.e("GrpcHealthService", "Monitoring error: ${e.message}")
                     _connectionStatus.value = _connectionStatus.value.copy(
                         isHealthy = false,
-                        errorMessage = "Monitoring error: ${e.message}"
+                        errorMessage = "Connection monitoring failed"
                     )
                     delay(10000) // Wait 10 seconds on error
                 }
@@ -264,12 +246,10 @@ class GrpcHealthService(
                 errorMessage = null
             )
             
-            Log.d("GrpcHealthService", "Connection status check SUCCESS: ${latency}ms, state: ${response.state}")
         } catch (e: Exception) {
-            Log.e("GrpcHealthService", "Connection status check failed: ${e.message}")
             _connectionStatus.value = _connectionStatus.value.copy(
                 isHealthy = false,
-                errorMessage = "Connection status check failed: ${e.message}"
+                errorMessage = "Status check failed"
             )
         }
     }
@@ -281,7 +261,6 @@ class GrpcHealthService(
     private suspend fun refreshTokenIfPossible(): Boolean {
         return refreshMutex.withLock {
             if (isRefreshing) {
-                Log.d("GrpcHealthService", "Token refresh already in progress")
                 return@withLock false
             }
             
@@ -292,11 +271,8 @@ class GrpcHealthService(
                 val password = sessionManager.getPassword()
                 
                 if (email.isNullOrBlank() || password.isNullOrBlank()) {
-                    Log.w("GrpcHealthService", "No saved credentials available for token refresh")
                     return@withLock false
                 }
-                
-                Log.d("GrpcHealthService", "Attempting token refresh with saved credentials")
                 
                 // Create a simple HTTP client for token refresh
                 val refreshClient = HttpClient(Android) {
@@ -329,10 +305,8 @@ class GrpcHealthService(
                         // Update token in session manager
                         sessionManager.saveToken(newToken)
                         
-                        Log.d("GrpcHealthService", "Token refresh successful")
                         return@withLock true
                     } else {
-                        Log.w("GrpcHealthService", "Token refresh failed: ${httpResponse.status}")
                         return@withLock false
                     }
                 } finally {
@@ -340,7 +314,6 @@ class GrpcHealthService(
                 }
                 
             } catch (e: Exception) {
-                Log.e("GrpcHealthService", "Token refresh error: ${e.message}")
                 return@withLock false
             } finally {
                 isRefreshing = false

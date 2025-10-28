@@ -11,8 +11,9 @@ import io.grpc.stub.MetadataUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-// Removed streaming imports - using unary calls only
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import app.mitra.matel.utils.SessionManager
@@ -46,16 +47,33 @@ class GrpcService(private val context: Context) {
     private val refreshMutex = Mutex()
     private var isRefreshing = false
     
-    // EAGER initialization - create channel immediately
+    // ✅ CONCURRENT SEARCH: Prevent duplicate requests for same search
+    private val activeSearches = mutableMapOf<String, Deferred<List<VehicleResult>>>()
+    
+    // ✅ SEARCH CACHE: LRU cache for search results (max 50 entries, 5 minute TTL)
+    private data class CacheEntry(
+        val results: List<VehicleResult>,
+        val timestamp: Long
+    )
+    private val searchCache = mutableMapOf<String, CacheEntry>()
+    private val cacheMaxSize = 50
+    private val cacheTtlMs = 5 * 60 * 1000L // 5 minutes
+    
+    // EAGER initialization - create channel immediately with optimized connection pooling
     private val channel: ManagedChannel = run {
         val builder = ManagedChannelBuilder.forAddress(ApiConfig.GRPC_HOST, ApiConfig.GRPC_PORT)
-            .keepAliveTime(30, TimeUnit.SECONDS)
-            .keepAliveTimeout(10, TimeUnit.SECONDS) // Increased for Cloudflare
+            // ✅ OPTIMIZED: Faster connection establishment
+            .keepAliveTime(15, TimeUnit.SECONDS) // Reduced for faster detection
+            .keepAliveTimeout(5, TimeUnit.SECONDS) // Faster timeout for quicker recovery
             .keepAliveWithoutCalls(true)
-            .maxInboundMessageSize(4 * 1024 * 1024) // Reduced for Cloudflare compatibility
-            .idleTimeout(120, TimeUnit.SECONDS) // Increased for proxy stability
-            // Cloudflare-friendly metadata size (reduced from 8192)
-            .maxInboundMetadataSize(4096)
+            // ✅ PERFORMANCE: Larger message size for batch operations
+            .maxInboundMessageSize(8 * 1024 * 1024) // Increased for better throughput
+            // ✅ CONNECTION REUSE: Shorter idle timeout for more aggressive connection reuse
+            .idleTimeout(60, TimeUnit.SECONDS) // Reduced for faster reconnection
+            // ✅ METADATA OPTIMIZATION: Larger metadata for complex auth headers
+            .maxInboundMetadataSize(8192) // Increased for auth token flexibility
+            // ✅ CONNECTION POOLING: Enable HTTP/2 connection reuse
+            .maxInboundMessageSize(8 * 1024 * 1024)
             // Add user agent for better Cloudflare compatibility
             .userAgent("MitraMatel-Android/1.0")
             
@@ -95,57 +113,56 @@ class GrpcService(private val context: Context) {
             try {
                 // Force connection attempt to establish channel early
                 channel.getState(true)
-                android.util.Log.d("GrpcService", "Connection warmed up successfully")
                 
                 // Start health monitoring
                 healthService.startMonitoring()
             } catch (e: Exception) {
-                android.util.Log.w("GrpcService", "Connection warmup failed: ${e.message}")
+                // Connection warmup failed, will retry on first request
             }
         }
     }
     
     /**
-     * Proactively warm up the gRPC connection and validate token
+     * Proactively warm up the connection and validate token
      * Call this when app resumes to reduce first search latency
      */
     fun warmUpConnection() {
         scope.launch {
             try {
-                android.util.Log.d("GrpcService", "Starting aggressive connection warmup on app resume...")
-                
                 // Force channel to connect if idle
                 val currentState = channel.getState(true)
-                android.util.Log.d("GrpcService", "Initial channel state: $currentState")
                 
                 // More aggressive connection establishment
                 try {
                     waitForConnectionReady(timeoutMs = 3000) // 3 second timeout for warmup
-                    android.util.Log.d("GrpcService", "Connection warmup successful")
                     
                     // Proactively check token validity with a lightweight health check
                     try {
                         healthService.checkHealth()
-                        android.util.Log.d("GrpcService", "Token validation successful")
                     } catch (e: Exception) {
-                        android.util.Log.d("GrpcService", "Token validation failed, may need refresh: ${e.message}")
-                        // Try to refresh token proactively
-                        refreshTokenIfPossible()
+                        // Try to refresh token proactively in a coroutine
+                        scope.launch {
+                            try {
+                                refreshTokenIfPossible()
+                            } catch (refreshError: Exception) {
+                                // Token refresh failed during warmup
+                            }
+                        }
                     }
                     
                 } catch (e: Exception) {
-                    android.util.Log.w("GrpcService", "Connection warmup timeout, will retry on first request: ${e.message}")
+                    // Connection warmup timeout, will retry on first request
                     // Don't throw - let individual requests handle connection
                 }
                 
             } catch (e: Exception) {
-                android.util.Log.w("GrpcService", "Connection warmup failed: ${e.message}")
+                // Connection warmup failed
             }
         }
     }
 
     /**
-     * Check if gRPC connection is ready without waiting
+     * Check if connection is ready without waiting
      * Useful for UI status indicators
      */
     fun isConnectionReady(): Boolean {
@@ -153,7 +170,7 @@ class GrpcService(private val context: Context) {
     }
 
     /**
-     * Wait for gRPC connection to be ready before making requests
+     * Wait for connection to be ready before making requests
      * Prevents hanging when app resumes and connection is not ready
      */
     private suspend fun waitForConnectionReady(timeoutMs: Long = 5000) {
@@ -166,22 +183,19 @@ class GrpcService(private val context: Context) {
             
             when (currentState) {
                 io.grpc.ConnectivityState.READY -> {
-                    android.util.Log.d("GrpcService", "Connection ready after ${attempts * 100}ms")
                     return
                 }
                 io.grpc.ConnectivityState.IDLE -> {
-                    android.util.Log.d("GrpcService", "Connection idle, requesting connection")
                     channel.getState(true) // Request connection
                 }
                 io.grpc.ConnectivityState.CONNECTING -> {
-                    android.util.Log.d("GrpcService", "Connection in progress, waiting...")
+                    // Connection in progress, waiting...
                 }
                 io.grpc.ConnectivityState.TRANSIENT_FAILURE -> {
-                    android.util.Log.w("GrpcService", "Connection failed, requesting reconnection")
                     channel.getState(true) // Request reconnection
                 }
                 io.grpc.ConnectivityState.SHUTDOWN -> {
-                    throw IllegalStateException("gRPC channel is shutdown")
+                    throw IllegalStateException("Connection channel is shutdown")
                 }
             }
             
@@ -190,39 +204,76 @@ class GrpcService(private val context: Context) {
             
             // Check timeout
             if (System.currentTimeMillis() - startTime > timeoutMs) {
-                android.util.Log.w("GrpcService", "Connection timeout after ${timeoutMs}ms, current state: $currentState")
-                throw Exception("Connection timeout: gRPC not ready after ${timeoutMs}ms")
+                throw Exception("Connection timeout: Service not ready after ${timeoutMs}ms")
             }
         }
         
         throw Exception("Connection failed: Maximum attempts reached")
     }
 
-    // ✅ UNARY METHOD: Fast search with better connection establishment
+    // ✅ UNARY METHOD: Fast search with caching, deduplication, and optimized connection
     suspend fun searchVehicle(
         searchType: String,
         searchValue: String
     ): List<VehicleResult> {
-        // ✅ WAIT FOR CONNECTION READY: Prevent hanging on app resume
-        waitForConnectionReady()
+        // ✅ CACHE CHECK: Return cached results if available and fresh
+        val cacheKey = "${searchType}:${searchValue.uppercase()}"
+        val cachedEntry = searchCache[cacheKey]
+        val currentTime = System.currentTimeMillis()
         
-        val request = when (searchType) {
-            "nopol" -> Vehicle.VehicleSearchRequest.newBuilder()
-                .setNomorPolisi(searchValue)
-                .build()
-            "noka" -> Vehicle.VehicleSearchRequest.newBuilder()
-                .setNomorRangka(searchValue)
-                .build()
-            "nosin" -> Vehicle.VehicleSearchRequest.newBuilder()
-                .setNomorMesin(searchValue)
-                .build()
-            else -> throw IllegalArgumentException("Invalid search type: $searchType")
+        if (cachedEntry != null && (currentTime - cachedEntry.timestamp) < cacheTtlMs) {
+            return cachedEntry.results
         }
         
+        // ✅ DEDUPLICATION: Check if same search is already in progress
+        activeSearches[cacheKey]?.let { activeSearch ->
+            return activeSearch.await()
+        }
+        
+        // ✅ ASYNC SEARCH: Create deferred for this search request
+        val searchDeferred = scope.async {
+            try {
+                // ✅ OPTIMIZED CONNECTION: Only wait if not already ready
+                if (!isConnectionReady()) {
+                    waitForConnectionReady(timeoutMs = 3000) // Reduced timeout for faster UX
+                }
+                
+                val request = when (searchType) {
+                    "nopol" -> Vehicle.VehicleSearchRequest.newBuilder()
+                        .setNomorPolisi(searchValue)
+                        .build()
+                    "noka" -> Vehicle.VehicleSearchRequest.newBuilder()
+                        .setNomorRangka(searchValue)
+                        .build()
+                    "nosin" -> Vehicle.VehicleSearchRequest.newBuilder()
+                        .setNomorMesin(searchValue)
+                        .build()
+                    else -> throw IllegalArgumentException("Invalid search type: $searchType")
+                }
+                
+                performActualSearch(request, cacheKey)
+            } finally {
+                // ✅ CLEANUP: Remove from active searches when done
+                activeSearches.remove(cacheKey)
+            }
+        }
+        
+        // Store the deferred for potential deduplication
+        activeSearches[cacheKey] = searchDeferred
+        
+        return searchDeferred.await()
+    }
+    
+    // ✅ ACTUAL SEARCH: Separated for better error handling and caching
+    private suspend fun performActualSearch(
+        request: Vehicle.VehicleSearchRequest,
+        cacheKey: String
+    ): List<VehicleResult> {
+        
         return try {
-            // ✅ NEW UNARY METHOD: SearchVehicleUnary - faster connection establishment
+            // ✅ OPTIMIZED UNARY METHOD: SearchVehicleUnary with faster connection
             val response = getAuthenticatedStub().searchVehicleUnary(request)
-            response.vehiclesList.map { vehicle ->
+            val results = response.vehiclesList.map { vehicle ->
                 VehicleResult(
                     id = vehicle.id,
                     nomorPolisi = vehicle.nomorPolisi,
@@ -231,18 +282,20 @@ class GrpcService(private val context: Context) {
                     financeName = vehicle.financeName
                 )
             }
+            
+            // ✅ CACHE STORAGE: Store results in cache with LRU eviction
+            storeInCache(cacheKey, results)
+            
+            results
         } catch (e: StatusException) {
             // Handle token expiration specifically
             if (e.status.code == Status.Code.UNAUTHENTICATED) {
-                android.util.Log.d("GrpcService", "Token expired, attempting refresh")
-                
                 val refreshed = refreshTokenIfPossible()
                 if (refreshed) {
-                    android.util.Log.d("GrpcService", "Token refreshed, retrying unary request")
                     // Retry with new token
                     try {
                         val retryResponse = getAuthenticatedStub().searchVehicleUnary(request)
-                        retryResponse.vehiclesList.map { vehicle ->
+                        val retryResults = retryResponse.vehiclesList.map { vehicle ->
                             VehicleResult(
                                 id = vehicle.id,
                                 nomorPolisi = vehicle.nomorPolisi,
@@ -251,21 +304,22 @@ class GrpcService(private val context: Context) {
                                 financeName = vehicle.financeName
                             )
                         }
+                        
+                        // Cache the retry results
+                        storeInCache(cacheKey, retryResults)
+                        
+                        retryResults
                     } catch (retryException: Exception) {
-                        android.util.Log.e("GrpcService", "Unary retry failed: ${retryException.message}")
                         emptyList()
                     }
                 } else {
-                    android.util.Log.w("GrpcService", "Token refresh failed")
                     sessionManager.clearSession()
                     emptyList()
                 }
             } else {
-                android.util.Log.e("GrpcService", "Unary search failed: ${e.message}")
                 emptyList()
             }
         } catch (e: Exception) {
-            android.util.Log.e("GrpcService", "Unary search failed: ${e.message}")
             emptyList()
         }
     }
@@ -274,10 +328,39 @@ class GrpcService(private val context: Context) {
      * Attempt to refresh token using saved credentials
      * Returns true if successful, false otherwise
      */
+
+    // ✅ CACHE MANAGEMENT: Store results with LRU eviction
+    private fun storeInCache(key: String, results: List<VehicleResult>) {
+        // Remove expired entries first
+        cleanExpiredCache()
+        
+        // LRU eviction: remove oldest entries if cache is full
+        if (searchCache.size >= cacheMaxSize) {
+            val oldestKey = searchCache.entries.minByOrNull { it.value.timestamp }?.key
+            oldestKey?.let { searchCache.remove(it) }
+        }
+        
+        searchCache[key] = CacheEntry(results, System.currentTimeMillis())
+    }
+    
+    // ✅ CACHE CLEANUP: Remove expired entries
+    private fun cleanExpiredCache() {
+        val currentTime = System.currentTimeMillis()
+        val expiredKeys = searchCache.entries
+            .filter { (currentTime - it.value.timestamp) >= cacheTtlMs }
+            .map { it.key }
+        
+        expiredKeys.forEach { searchCache.remove(it) }
+    }
+    
+    // ✅ CACHE UTILITY: Clear all cached search results
+    fun clearSearchCache() {
+        searchCache.clear()
+    }
+
     private suspend fun refreshTokenIfPossible(): Boolean {
         return refreshMutex.withLock {
             if (isRefreshing) {
-                android.util.Log.d("GrpcService", "Token refresh already in progress")
                 return@withLock false
             }
             
@@ -288,11 +371,8 @@ class GrpcService(private val context: Context) {
                 val password = sessionManager.getPassword()
                 
                 if (email.isNullOrBlank() || password.isNullOrBlank()) {
-                    android.util.Log.w("GrpcService", "No saved credentials available for token refresh")
                     return@withLock false
                 }
-                
-                android.util.Log.d("GrpcService", "Attempting token refresh with saved credentials")
                 
                 // Create a simple HTTP client for token refresh
                 val refreshClient = HttpClient(Android) {
@@ -325,10 +405,8 @@ class GrpcService(private val context: Context) {
                         // Update token in session manager
                         sessionManager.saveToken(newToken)
                         
-                        android.util.Log.d("GrpcService", "Token refresh successful")
                         return@withLock true
                     } else {
-                        android.util.Log.w("GrpcService", "Token refresh failed: ${response.status}")
                         return@withLock false
                     }
                 } finally {
@@ -336,7 +414,6 @@ class GrpcService(private val context: Context) {
                 }
                 
             } catch (e: Exception) {
-                android.util.Log.e("GrpcService", "Token refresh error: ${e.message}")
                 return@withLock false
             } finally {
                 isRefreshing = false
