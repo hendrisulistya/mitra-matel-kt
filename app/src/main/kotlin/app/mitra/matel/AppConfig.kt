@@ -35,6 +35,6 @@ object AppConfig {
         return if (IS_PRODUCTION) "Production" else "Development"
     }
     fun getAppVersion(): String {
-        return "0.9.150 (Build 1266)"+if (IS_PRODUCTION) "-prod" else "-debug"
+        return "0.9.200 (Build ${BuildConfig.BUILD_NUMBER})"+if (IS_PRODUCTION) "-prod" else "-debug"
     }
 }

@@ -146,8 +146,12 @@ object HttpClientFactory {
                                 throw exception
                             }
                         }
-                        exception is ClientRequestException && exception.response.status == HttpStatusCode.Forbidden -> {
-                            Log.w("HTTP Client", "403 Forbidden - Device conflict detected")
+                        exception is ClientRequestException && (
+                            exception.response.status == HttpStatusCode.Forbidden || 
+                            exception.response.status == HttpStatusCode.Conflict
+                        ) -> {
+                            val statusCode = exception.response.status.value
+                            Log.w("HTTP Client", "$statusCode ${exception.response.status.description} - Device conflict detected")
                             
                             // Clear session immediately for device conflicts
                             sessionManager?.clearSession()

@@ -74,7 +74,7 @@ class ApiService(
                 val loginResponse: LoginResponse = response.body()
                 HttpClientFactory.setAuthToken(loginResponse.token)
                 Result.success(loginResponse)
-            } else if (response.status == HttpStatusCode.Forbidden) {
+            } else if (response.status == HttpStatusCode.Conflict) {
                 val conflict: DeviceConflictResponse = response.body()
                 Result.failure(DeviceConflictException(conflict))
             } else {

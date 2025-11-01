@@ -18,10 +18,22 @@ android {
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 5
-        versionName = "0.9.150"
+        versionName = "0.9.200"
         
         // Add build number that increments with each build
-        buildConfigField("int", "BUILD_NUMBER", "${System.currentTimeMillis() / 1000}")
+        val buildNumberFile = rootProject.file("build_number.txt")
+        val buildNumber = if (buildNumberFile.exists()) {
+            val currentBuildNumber = buildNumberFile.readText().trim().toInt()
+            val newBuildNumber = currentBuildNumber + 1
+            buildNumberFile.writeText(newBuildNumber.toString())
+            newBuildNumber
+        } else {
+            // Initial build number if file doesn't exist
+            val initialBuildNumber = 1
+            buildNumberFile.writeText(initialBuildNumber.toString())
+            initialBuildNumber
+        }
+        buildConfigField("int", "BUILD_NUMBER", "$buildNumber")
     }
 
     signingConfigs {

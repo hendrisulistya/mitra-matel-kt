@@ -89,17 +89,24 @@ data class DeviceRecord(
     @SerialName("last_ip") val lastIp: String,
     @SerialName("last_location") val lastLocation: String,
     @SerialName("created_at") val createdAt: String,
-    @SerialName("deleted_at") val deletedAt: String
+    @SerialName("deleted_at") val deletedAt: String?
 )
 
 @Serializable
 data class DeviceConflictResponse(
     @SerialName("current_device") val currentDevice: DeviceRecord,
     @SerialName("requested_device") val requestedDevice: DeviceRecord,
-    @SerialName("use_force_login") val useForceLogin: Boolean,
+    @SerialName("force_login_required") val forceLoginRequired: Boolean? = null,
+    @SerialName("device_transfer_required") val deviceTransferRequired: Boolean? = null,
+    @SerialName("use_force_login") val useForceLogin: Boolean? = null, // Deprecated field
     val error: String? = null,
-    val message: String? = null
-)
+    val message: String? = null,
+    val warning: String? = null
+) {
+    // Helper property to get force login requirement, prioritizing new field over deprecated one
+    val shouldForceLogin: Boolean
+        get() = forceLoginRequired ?: useForceLogin ?: false
+}
 
 @Serializable
 data class AddVehicleRequest(
