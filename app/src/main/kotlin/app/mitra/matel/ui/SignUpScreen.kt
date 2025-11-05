@@ -687,6 +687,21 @@ fun SignUpScreen(
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.clickable { onNavigateToSignIn() }
             )
+
+            // Contact admin link
+            Text(
+                text = "Kendala untuk mendaftar? Hubungi admin",
+                style = MaterialTheme.typography.bodySmall.copy(
+                    textDecoration = TextDecoration.Underline
+                ),
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.clickable {
+                    val message = "Saya kesulitan untuk mendaftar, mohon Bantuan nya"
+                    val adminPhone = "6281936706368"
+                    openAdminWhatsApp(context, adminPhone, message)
+                }
+            )
         }
     }
 
@@ -785,5 +800,35 @@ fun SignUpScreen(
 private fun SignUpPreview() {
     MaterialTheme {
         SignUpScreen(onBack = {}, onNavigateToSignIn = {}, onSignUpSuccess = {})
+    }
+}
+
+private fun openAdminWhatsApp(
+    context: android.content.Context,
+    phone: String?,
+    message: String
+) {
+    if (phone.isNullOrBlank()) {
+        android.widget.Toast.makeText(
+            context,
+            "Nomor admin tidak tersedia",
+            android.widget.Toast.LENGTH_SHORT
+        ).show()
+        return
+    }
+
+    try {
+        val encodedMessage = android.net.Uri.encode(message)
+
+        // Try WhatsApp deep link with phone number first
+        val whatsappUri = "https://wa.me/$phone?text=$encodedMessage"
+        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(whatsappUri))
+        context.startActivity(intent)
+    } catch (e: Exception) {
+        android.widget.Toast.makeText(
+            context,
+            "Tidak dapat membuka WhatsApp: ${e.message}",
+            android.widget.Toast.LENGTH_SHORT
+        ).show()
     }
 }

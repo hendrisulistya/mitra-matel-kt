@@ -31,6 +31,18 @@ import com.google.android.gms.location.LocationServices
 import android.location.Location
 import android.util.Log
 import app.mitra.matel.network.GrpcService
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import java.net.URLEncoder
+import android.content.ActivityNotFoundException
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Rect
+import androidx.core.content.FileProvider
+import java.io.File
+import java.io.FileOutputStream
 
 @Composable
 fun VehicleDetailContent(
@@ -357,6 +369,7 @@ private fun VehicleDetailDisplay(
     val apiService = remember { ApiService(context = context) }
     val fusedLocationClient: FusedLocationProviderClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     val coroutineScope = rememberCoroutineScope()
+    var showShareDialog by remember { mutableStateOf(false) }
     
     // After display, attempt to send access; if missing GPS or location, trigger gate
     LaunchedEffect(vehicleDetail) {
@@ -458,48 +471,7 @@ private fun VehicleDetailDisplay(
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Button(
-                onClick = { 
-                    // Share vehicle data to WhatsApp
-                    val shareText = "*=================*\n" +
-                    "*MITRA MATEL APP*\n" +
-                    "*=================*\n" +
-                            "Nomor Polisi: ${vehicleDetail.nomor_polisi.ifEmpty { "-" }}\n" +
-                            "Nomor Mesin: ${vehicleDetail.nomor_mesin.ifEmpty { "-" }}\n" +
-                            "Nomor Rangka: ${vehicleDetail.nomor_rangka.ifEmpty { "-" }}\n" +
-                            "Tipe Kendaraan: ${vehicleDetail.tipe_kendaraan.ifEmpty { "-" }}\n" +
-                            "Finance: ${vehicleDetail.finance_name.ifEmpty { "-" }}\n" +
-                            "Cabang: ${vehicleDetail.cabang.ifEmpty { "-" }}\n" +
-                            "*PERHATIAN*: _Aplikasi Mitra Matel bukanlah alat sah untuk penarikan. Selalu ikuti SOP yang berlaku dan konfirmasi ke kantor finance terkait._"
-                    
-                    val whatsappIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(android.content.Intent.EXTRA_TEXT, shareText)
-                        setPackage("com.whatsapp") // Try WhatsApp first
-                    }
-                    
-                    val whatsappBusinessIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(android.content.Intent.EXTRA_TEXT, shareText)
-                        setPackage("com.whatsapp.w4b") // WhatsApp Business
-                    }
-                    
-                    try {
-                        // Try WhatsApp first
-                        context.startActivity(whatsappIntent)
-                    } catch (e: android.content.ActivityNotFoundException) {
-                        try {
-                            // Try WhatsApp Business
-                            context.startActivity(whatsappBusinessIntent)
-                        } catch (e: android.content.ActivityNotFoundException) {
-                            // Fallback to general share
-                            val generalShareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(android.content.Intent.EXTRA_TEXT, shareText)
-                            }
-                            context.startActivity(android.content.Intent.createChooser(generalShareIntent, "Bagikan Data Kendaraan"))
-                        }
-                    }
-                },
+                onClick = { showShareDialog = true },
                 modifier = Modifier.weight(1f)
             ) {
                 Text("Bagikan")
@@ -512,6 +484,51 @@ private fun VehicleDetailDisplay(
                 Text("Tutup")
             }
         }
+    }
+
+    // Share dialog
+    if (showShareDialog) {
+        AlertDialog(
+            onDismissRequest = { showShareDialog = false },
+            title = { Text("Pilih Format Berbagi") },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text("Bagaimana Anda ingin membagikan data kendaraan ini?")
+
+                    Button(
+                        onClick = {
+                            showShareDialog = false
+                            shareAsImage(context, vehicleDetail)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Bagikan sebagai Gambar")
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            showShareDialog = false
+                            shareToWhatsApp(context, vehicleDetail)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Bagikan sebagai Teks")
+                    }
+
+                    TextButton(
+                        onClick = { showShareDialog = false },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Batal")
+                    }
+                }
+            },
+            confirmButton = { },
+            dismissButton = { }
+        )
     }
 }
 
@@ -644,59 +661,46 @@ private fun LocationPermissionContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(24.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
         ) {
             Column(
-                modifier = Modifier.padding(32.dp),
+                modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(24.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // GPS Icon
                 Icon(
                     imageVector = Icons.Default.LocationOn,
-                    contentDescription = "GPS Permission",
-                    modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    contentDescription = "Location Required",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(48.dp)
                 )
-                
-                // Title
                 Text(
-                    text = "Izin Lokasi Diperlukan",
-                    style = MaterialTheme.typography.headlineSmall,
+                    text = "Location permission required",
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "Grant location access to proceed.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                     textAlign = TextAlign.Center
                 )
-                
-                // Description
-                Text(
-                    text = "Aplikasi memerlukan akses lokasi GPS untuk menampilkan detail kendaraan. Fitur ini diperlukan untuk keamanan dan verifikasi lokasi.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
-                    textAlign = TextAlign.Center,
-                    lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
-                )
-                
-                // Buttons
-                Column(
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Button(
-                        onClick = onRequestPermission,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Berikan Izin Lokasi")
-                    }
-                    
                     OutlinedButton(
                         onClick = onBack,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.weight(1f)
                     ) {
-                        Text("Kembali")
+                        Text("Back")
+                    }
+                    Button(
+                        onClick = onRequestPermission,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Grant Permission")
                     }
                 }
             }
@@ -791,5 +795,230 @@ fun VehicleDetailContentPreview() {
             onBack = { /* Preview - no action */ },
             onRequireLocationGate = { /* no-op in preview */ }
         )
+    }
+}
+
+/**
+ * Generate and share vehicle details as image
+ */
+private fun shareAsImage(context: android.content.Context, vehicleDetail: VehicleDetail) {
+    try {
+        // Create bitmap with vehicle details - compact layout
+        val width = 1080
+        val height = 1650  // Adjusted for disclaimer
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        // Background
+        canvas.drawColor(android.graphics.Color.WHITE)
+
+        // Draw gray header background
+        val headerBackgroundPaint = Paint().apply {
+            color = android.graphics.Color.parseColor("#E0E0E0")
+            style = Paint.Style.FILL
+        }
+        canvas.drawRect(0f, 0f, width.toFloat(), 120f, headerBackgroundPaint)
+
+        // Paint for text
+        val headerPaint = Paint().apply {
+            color = android.graphics.Color.parseColor("#1976D2")
+            textSize = 56f
+            typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+            isAntiAlias = true
+            textAlign = Paint.Align.CENTER
+        }
+
+        val labelPaint = Paint().apply {
+            color = android.graphics.Color.GRAY
+            textSize = 32f
+            isAntiAlias = true
+        }
+
+        val valuePaint = Paint().apply {
+            color = android.graphics.Color.BLACK
+            textSize = 42f
+            typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
+            isAntiAlias = true
+        }
+
+        val disclaimerPaint = Paint().apply {
+            color = android.graphics.Color.parseColor("#666666")
+            textSize = 28f
+            isAntiAlias = true
+            textAlign = Paint.Align.CENTER
+        }
+
+        var y = 80f
+        val leftMargin = 50f
+        val rightMargin = width - 50f
+
+        // Header - MITRA APP
+        canvas.drawText("MITRA APP", width / 2f, y, headerPaint)
+        y += 90f
+
+        // Draw each field - very compact spacing
+        fun drawField(label: String, value: String) {
+            canvas.drawText(label, leftMargin, y, labelPaint)
+            y += 42f
+
+            // Handle long text by wrapping
+            val maxWidth = rightMargin - leftMargin
+            val displayValue = value.ifEmpty { "-" }
+
+            if (valuePaint.measureText(displayValue) > maxWidth) {
+                // Split long text into multiple lines
+                val words = displayValue.split(" ")
+                var line = ""
+                words.forEach { word ->
+                    val testLine = if (line.isEmpty()) word else "$line $word"
+                    if (valuePaint.measureText(testLine) > maxWidth) {
+                        canvas.drawText(line, leftMargin, y, valuePaint)
+                        y += 46f
+                        line = word
+                    } else {
+                        line = testLine
+                    }
+                }
+                if (line.isNotEmpty()) {
+                    canvas.drawText(line, leftMargin, y, valuePaint)
+                    y += 46f
+                }
+            } else {
+                canvas.drawText(displayValue, leftMargin, y, valuePaint)
+                y += 46f
+            }
+
+            y += 32f // Reduced space between fields
+        }
+
+        // Draw all fields in order
+        drawField("Nomor Polisi", vehicleDetail.nomor_polisi)
+        drawField("Nomor Rangka", vehicleDetail.nomor_rangka)
+        drawField("Nomor Mesin", vehicleDetail.nomor_mesin)
+        drawField("Nomor Kontrak", vehicleDetail.nomor_kontrak)
+        drawField("Nama Konsumen", vehicleDetail.nama_konsumen)
+        drawField("Tipe Kendaraan", vehicleDetail.tipe_kendaraan)
+        drawField("Warna Kendaraan", vehicleDetail.warna_kendaraan)
+        drawField("Tahun Kendaraan", vehicleDetail.tahun_kendaraan)
+        drawField("Finance", vehicleDetail.finance_name)
+        drawField("Cabang", vehicleDetail.cabang)
+        drawField("Past Due", vehicleDetail.past_due)
+
+        // Add disclaimer at bottom
+        val disclaimerY = height - 100f
+        val disclaimerText = "App ini bukan alat penarikan yang sah,"
+        val disclaimerText2 = "konsultasikan ke finance terkait"
+        canvas.drawText(disclaimerText, width / 2f, disclaimerY, disclaimerPaint)
+        canvas.drawText(disclaimerText2, width / 2f, disclaimerY + 35f, disclaimerPaint)
+
+        // Save bitmap to cache
+        val cachePath = File(context.cacheDir, "images")
+        cachePath.mkdirs()
+        val file = File(cachePath, "vehicle_detail_${vehicleDetail.nomor_polisi}.png")
+        val stream = FileOutputStream(file)
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+        stream.close()
+
+        // Share via intent
+        val contentUri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "image/png"
+            putExtra(Intent.EXTRA_STREAM, contentUri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+
+        // Filter WhatsApp apps
+        val packageManager = context.packageManager
+        val resolveInfos = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            packageManager.queryIntentActivities(shareIntent, android.content.pm.PackageManager.ResolveInfoFlags.of(android.content.pm.PackageManager.MATCH_ALL.toLong()))
+        } else {
+            packageManager.queryIntentActivities(shareIntent, android.content.pm.PackageManager.MATCH_ALL)
+        }
+
+        val whatsappIntents = resolveInfos.filter { resolveInfo ->
+            val packageName = resolveInfo.activityInfo.packageName
+            packageName.startsWith("com.whatsapp")
+        }.map { resolveInfo ->
+            Intent(shareIntent).apply {
+                setPackage(resolveInfo.activityInfo.packageName)
+            }
+        }
+
+        if (whatsappIntents.isEmpty()) {
+            Toast.makeText(context, "WhatsApp tidak terinstall", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (whatsappIntents.size == 1) {
+            context.startActivity(whatsappIntents[0])
+        } else {
+            val chooser = Intent.createChooser(whatsappIntents[0], "Bagikan via WhatsApp")
+            chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS, whatsappIntents.drop(1).toTypedArray())
+            context.startActivity(chooser)
+        }
+    } catch (e: Exception) {
+        Toast.makeText(context, "Gagal membuat gambar: ${e.message}", Toast.LENGTH_LONG).show()
+    }
+}
+
+/**
+ * Share vehicle details via WhatsApp
+ * Shows only WhatsApp and WhatsApp Business in the chooser
+ */
+private fun shareToWhatsApp(context: android.content.Context, vehicleDetail: VehicleDetail) {
+    val shareText = buildString {
+        append("Detail Kendaraan:\n")
+        append("Nomor Kontrak: ${vehicleDetail.nomor_kontrak}\n")
+        append("Nama Konsumen: ${vehicleDetail.nama_konsumen}\n")
+        append("Past Due: ${vehicleDetail.past_due}\n")
+        append("Nomor Polisi: ${vehicleDetail.nomor_polisi}\n")
+        append("Nomor Rangka: ${vehicleDetail.nomor_rangka}\n")
+        append("Nomor Mesin: ${vehicleDetail.nomor_mesin}\n")
+        append("Tipe: ${vehicleDetail.tipe_kendaraan}\n")
+        append("Finance: ${vehicleDetail.finance_name}\n")
+        append("Cabang: ${vehicleDetail.cabang}\n")
+        append("Tahun: ${vehicleDetail.tahun_kendaraan}\n")
+        append("Warna: ${vehicleDetail.warna_kendaraan}")
+    }
+
+    try {
+        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, shareText)
+        }
+
+        val packageManager = context.packageManager
+        val resolveInfos = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            packageManager.queryIntentActivities(sendIntent, android.content.pm.PackageManager.ResolveInfoFlags.of(android.content.pm.PackageManager.MATCH_ALL.toLong()))
+        } else {
+            packageManager.queryIntentActivities(sendIntent, android.content.pm.PackageManager.MATCH_ALL)
+        }
+
+        // Filter all WhatsApp variants (including clones)
+        val whatsappIntents = resolveInfos.filter { resolveInfo ->
+            val packageName = resolveInfo.activityInfo.packageName
+            packageName.startsWith("com.whatsapp")
+        }.map { resolveInfo ->
+            Intent(sendIntent).apply {
+                setPackage(resolveInfo.activityInfo.packageName)
+            }
+        }
+
+        if (whatsappIntents.isEmpty()) {
+            Toast.makeText(context, "WhatsApp tidak terinstall", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // If only one WhatsApp app, open it directly
+        if (whatsappIntents.size == 1) {
+            context.startActivity(whatsappIntents[0])
+        } else {
+            // Show chooser with only WhatsApp apps
+            val chooser = Intent.createChooser(whatsappIntents[0], "Bagikan via WhatsApp")
+            chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS, whatsappIntents.drop(1).toTypedArray())
+            context.startActivity(chooser)
+        }
+    } catch (e: Exception) {
+        Toast.makeText(context, "Tidak dapat membuka WhatsApp: ${e.message}", Toast.LENGTH_LONG).show()
     }
 }

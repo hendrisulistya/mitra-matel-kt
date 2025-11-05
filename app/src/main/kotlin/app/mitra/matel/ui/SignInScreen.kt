@@ -26,6 +26,7 @@ import app.mitra.matel.viewmodel.AuthState
 import app.mitra.matel.viewmodel.AuthViewModel
 import app.mitra.matel.R
 import android.util.Log
+import java.util.Locale
 
 @Composable
 fun SignInScreen(
@@ -41,12 +42,7 @@ fun SignInScreen(
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-
-    // Debug: Log API URL on screen load
-    LaunchedEffect(Unit) {
-        Log.d("SignInScreen", "API Base URL: ${ApiConfig.BASE_URL}")
-        Log.d("SignInScreen", "Login Endpoint: ${ApiConfig.BASE_URL}${ApiConfig.Endpoints.LOGIN}")
-    }
+    var failedAttempts by remember { mutableStateOf(0) }
 
     // Handle login state changes
     LaunchedEffect(loginState) {
@@ -56,6 +52,7 @@ fun SignInScreen(
             }
             is AuthState.Error -> {
                 errorMessage = state.message
+                failedAttempts += 1
             }
             is AuthState.Conflict -> {
                 errorMessage = null
@@ -99,19 +96,39 @@ fun SignInScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Error message
-        errorMessage?.let {
+        // Show the card if we have a message OR we already crossed attempts threshold
+        val showErrorCard = (errorMessage != null) || (failedAttempts >= 3)
+        if (showErrorCard) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.errorContainer
                 )
             ) {
-                Text(
-                    text = it,
+                Column(
                     modifier = Modifier.padding(12.dp),
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = errorMessage ?: "Terjadi kesalahan saat login",
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    if (failedAttempts >= 3) {
+                        Text(
+                            text = "Hubungi admin untuk bantuan",
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                textDecoration = androidx.compose.ui.text.style.TextDecoration.Underline
+                            ),
+                            modifier = Modifier.clickable {
+                                val message = "Halo admin, saya butuh bantuan untuk login."
+                                val adminPhone = "6281936706368"
+                                openAdminWhatsApp(context, adminPhone, message)
+                            }
+                        )
+                    }
+                }
             }
             Spacer(modifier = Modifier.height(8.dp))
         }
@@ -119,7 +136,7 @@ fun SignInScreen(
         // Email field
         OutlinedTextField(
             value = email,
-            onValueChange = { email = it },
+            onValueChange = { email = it.trim().lowercase(Locale.ROOT) },
             label = { Text("Email") },
             leadingIcon = {
                 Icon(Icons.Default.Email, contentDescription = "Email icon")
@@ -133,7 +150,7 @@ fun SignInScreen(
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("Password") },
+            label = { Text("Kata Sandi") },
             leadingIcon = {
                 Icon(Icons.Default.Lock, contentDescription = "Password icon")
             },
@@ -154,10 +171,15 @@ fun SignInScreen(
         Button(
             onClick = {
                 errorMessage = null
-                if (email.isNotBlank() && password.isNotBlank()) {
-                    viewModel.login(email, password)
+                val sanitizedEmail = email.trim().lowercase(Locale.ROOT)
+                if (sanitizedEmail.isNotBlank() && password.isNotBlank()) {
+                    if (!isAllowedEmail(sanitizedEmail)) {
+                        errorMessage = "Format email tidak valid"
+                    } else {
+                        viewModel.login(sanitizedEmail, password)
+                    }
                 } else {
-                    errorMessage = "Please enter email and password"
+                    errorMessage = "Mohon isi email dan kata sandi"
                 }
             },
             enabled = loginState !is AuthState.Loading,
@@ -253,7 +275,14 @@ fun SignInScreen(
             },
             confirmButton = {
                 Button(
-                    onClick = { viewModel.forceLogin(email, password) },
+                    onClick = {
+                        val sanitizedEmail = email.trim().lowercase(Locale.ROOT)
+                        if (!isAllowedEmail(sanitizedEmail)) {
+                            errorMessage = "Format email tidak valid."
+                        } else {
+                            viewModel.forceLogin(sanitizedEmail, password)
+                        }
+                    },
                     enabled = loginState !is AuthState.Loading
                 ) {
                     Text("Tetap Masuk")
@@ -273,5 +302,49 @@ fun SignInScreen(
 private fun SignInPreview() {
     MaterialTheme {
         SignInScreen(onBack = {}, onSignInSuccess = {}, onNavigateToSignUp = {})
+    }
+}
+
+private val AllowedEmailDomains = setOf(
+    "gmail.com","user.com","yahoo.com","ymail.com","live.com"
+)
+
+private fun isAllowedEmail(email: String): Boolean {
+    val sanitized = email.trim().lowercase(Locale.ROOT)
+    val atIndex = sanitized.indexOf('@')
+    if (atIndex <= 0 || atIndex == sanitized.lastIndex) return false
+    val localPart = sanitized.substring(0, atIndex)
+    val domain = sanitized.substring(atIndex + 1)
+    val localPartPattern = Regex("^[a-z0-9._%+-]+$")
+    return localPartPattern.matches(localPart) && domain in AllowedEmailDomains
+}
+
+private fun openAdminWhatsApp(
+    context: android.content.Context,
+    phone: String?,
+    message: String
+) {
+    if (phone.isNullOrBlank()) {
+        android.widget.Toast.makeText(
+            context,
+            "Nomor admin tidak tersedia",
+            android.widget.Toast.LENGTH_SHORT
+        ).show()
+        return
+    }
+
+    try {
+        val encodedMessage = android.net.Uri.encode(message)
+
+        // Try WhatsApp deep link with phone number first
+        val whatsappUri = "https://wa.me/$phone?text=$encodedMessage"
+        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(whatsappUri))
+        context.startActivity(intent)
+    } catch (e: Exception) {
+        android.widget.Toast.makeText(
+            context,
+            "Tidak dapat membuka WhatsApp: ${e.message}",
+            android.widget.Toast.LENGTH_SHORT
+        ).show()
     }
 }

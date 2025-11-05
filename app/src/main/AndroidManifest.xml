@@ -17,8 +17,16 @@
     <!-- Microphone permission for voice search -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
-    
-
+    <!-- Package visibility for WhatsApp apps (Android 11+) -->
+    <queries>
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
+        <!-- Query for all apps that can handle SEND intent -->
+        <intent>
+            <action android:name="android.intent.action.SEND" />
+            <data android:mimeType="text/plain" />
+        </intent>
+    </queries>
 
     <application
         android:allowBackup="true"
@@ -37,5 +45,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- FileProvider for sharing images -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 </manifest>
