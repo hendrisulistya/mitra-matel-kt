@@ -44,6 +44,7 @@
 -keep class grpc.Health** { *; }
 -keep class grpc.Vehicle** { *; }
 -keep class grpc.HealthServiceGrpcKt** { *; }
+-keep class grpc.VehicleServiceGrpcKt** { *; }
 -keep class grpc.VehicleSearchServiceGrpcKt** { *; }
 
 # Keep gRPC stub classes and their methods

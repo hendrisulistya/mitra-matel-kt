@@ -1,8 +1,9 @@
 package app.mitra.matel.network
 
+// Top-level imports in GrpcService.kt
 import android.content.Context
 import grpc.Vehicle
-import grpc.VehicleSearchServiceGrpcKt
+import grpc.VehicleServiceGrpcKt
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
 import io.grpc.Metadata
@@ -95,12 +96,12 @@ class GrpcService(private val context: Context) {
     }
 
     // Base service stub without metadata
-    private val baseVehicleService: VehicleSearchServiceGrpcKt.VehicleSearchServiceCoroutineStub =
-        VehicleSearchServiceGrpcKt.VehicleSearchServiceCoroutineStub(channel)
+    private val baseVehicleService: VehicleServiceGrpcKt.VehicleServiceCoroutineStub =
+        VehicleServiceGrpcKt.VehicleServiceCoroutineStub(channel)
 
     // Get authenticated stub with current token
     @Suppress("DEPRECATION")
-    private fun getAuthenticatedStub(): VehicleSearchServiceGrpcKt.VehicleSearchServiceCoroutineStub {
+    private fun getAuthenticatedStub(): VehicleServiceGrpcKt.VehicleServiceCoroutineStub {
         return MetadataUtils.attachHeaders(baseVehicleService, getAuthMetadata())
     }
     
@@ -271,8 +272,8 @@ class GrpcService(private val context: Context) {
     ): List<VehicleResult> {
         
         return try {
-            // ✅ OPTIMIZED UNARY METHOD: SearchVehicleUnary with faster connection
-            val response = getAuthenticatedStub().searchVehicleUnary(request)
+            // ✅ OPTIMIZED UNARY METHOD: SearchVehicle (updated to new proto)
+            val response = getAuthenticatedStub().searchVehicle(request)
             val results = response.vehiclesList.map { vehicle ->
                 VehicleResult(
                     id = vehicle.id,
@@ -289,12 +290,12 @@ class GrpcService(private val context: Context) {
             results
         } catch (e: StatusException) {
             // Handle token expiration specifically
-            if (e.status.code == Status.Code.UNAUTHENTICATED) {
+            if (e.status.code == io.grpc.Status.Code.UNAUTHENTICATED) {
                 val refreshed = refreshTokenIfPossible()
                 if (refreshed) {
                     // Retry with new token
                     try {
-                        val retryResponse = getAuthenticatedStub().searchVehicleUnary(request)
+                        val retryResponse = getAuthenticatedStub().searchVehicle(request)
                         val retryResults = retryResponse.vehiclesList.map { vehicle ->
                             VehicleResult(
                                 id = vehicle.id,

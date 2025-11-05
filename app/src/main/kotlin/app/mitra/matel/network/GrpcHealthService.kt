@@ -83,10 +83,10 @@ class GrpcHealthService(
         try {
             // Try different service names that might be registered
             val serviceNames = listOf(
-                "VehicleSearchService",  // Current
-                "",                      // Overall server health
-                "grpc.VehicleSearchService", // With package name
-                "HealthService"          // Health service itself
+                "VehicleService",
+                "",
+                "grpc.VehicleService",
+                "HealthService"
             )
             
             var healthCheckSucceeded = false

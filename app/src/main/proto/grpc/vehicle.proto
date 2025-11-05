@@ -24,50 +24,35 @@ message VehicleSearchResponse {
   string finance_name = 5;
 }
 
-// Container for multiple vehicles (used in unary or batch response)
+// Container for multiple vehicles (used in unary search response)
 message VehicleList {
   repeated VehicleSearchResponse vehicles = 1;
 }
 
-// Generic error wrapper
-message ErrorMessage {
-  string error_message = 1;
+// New detail request/response messages
+message VehicleDetailRequest {
+  string id = 1;
 }
 
-// Unified response wrapper for all RPC types
-message Response {
-  oneof payload {
-    VehicleList vehicle_list = 1;
-    ErrorMessage error_message = 2;
-  }
+message VehicleDetailResponse {
+  string nomor_polisi = 1;
+  string nomor_rangka = 2;
+  string nomor_mesin = 3;
+  string tipe_kendaraan = 4;
+  string finance_name = 5;
+  string cabang = 6;
+  string nomor_kontrak = 7;
+  string warna_kendaraan = 8;
+  string tahun_kendaraan = 9;
+  string past_due = 10;
 }
 
 // ==========================================================
 // Service Definition
 // ==========================================================
 
-service VehicleSearchService {
-  // -----------------------------
-  // 1️⃣ Unary RPC
-  // -----------------------------
-  // Single request → single response (list of vehicles)
-  rpc SearchVehicleUnary(VehicleSearchRequest) returns (VehicleList);
-
-  // -----------------------------
-  // 2️⃣ Server Streaming RPC
-  // -----------------------------
-  // Single request → stream of individual results
-  rpc SearchVehicleStream(VehicleSearchRequest) returns (stream VehicleSearchResponse);
-
-  // -----------------------------
-  // 3️⃣ Client Streaming RPC
-  // -----------------------------
-  // Stream of requests → single combined response
-  rpc SearchVehicleBatch(stream VehicleSearchRequest) returns (VehicleList);
-
-  // -----------------------------
-  // 4️⃣ Bidirectional Streaming RPC
-  // -----------------------------
-  // Stream of requests ↔ stream of responses
-  rpc SearchVehicleBidirectional(stream VehicleSearchRequest) returns (stream VehicleSearchResponse);
+// Simplified single service with unary RPCs only
+service VehicleService {
+  rpc SearchVehicle(VehicleSearchRequest) returns (VehicleList);
+  rpc GetVehicleDetail(VehicleDetailRequest) returns (VehicleDetailResponse);
 }

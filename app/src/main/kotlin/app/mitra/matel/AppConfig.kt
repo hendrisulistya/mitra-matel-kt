@@ -15,7 +15,7 @@ object AppConfig {
      * - false: Development mode (localhost APIs, debug features enabled)
      * - true:  Production mode (production APIs, optimized for release)
      */
-    const val IS_PRODUCTION = true
+    const val IS_PRODUCTION = false
     
     /**
      * App Version Information

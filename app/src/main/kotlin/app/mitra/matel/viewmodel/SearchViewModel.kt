@@ -95,7 +95,7 @@ class SearchViewModel(private val grpcService: GrpcService) : ViewModel() {
         val connectionStatus = currentState.grpcConnectionStatus
         if (connectionStatus != null && !connectionStatus.isHealthy) {
             _uiState.value = currentState.copy(
-                error = "Connecting to server...",
+                error = "Menghubungkan ke server...",
                 results = emptyList()
             )
             // Add small delay to show connecting message
@@ -126,7 +126,7 @@ class SearchViewModel(private val grpcService: GrpcService) : ViewModel() {
                 _uiState.value.searchText == currentState.searchText) {
                 _uiState.value = currentState.copy(
                     results = emptyList(),
-                    error = e.message ?: "Search failed",
+                    error = e.message ?: "Pencarian gagal",
                     searchDurationMs = duration
                 )
             }
