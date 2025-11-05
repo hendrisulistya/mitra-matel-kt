@@ -422,17 +422,70 @@ class GrpcService(private val context: Context) {
         }
     }
 
-    fun close() {
-        healthService.stopMonitoring()
-        if (!channel.isShutdown) {
-            channel.shutdown()
-            try {
-                if (!channel.awaitTermination(5, TimeUnit.SECONDS)) {
-                    channel.shutdownNow()
-                }
-            } catch (e: InterruptedException) {
-                channel.shutdownNow()
+    // ✅ UNARY METHOD: Get vehicle detail via gRPC VehicleService
+    suspend fun getVehicleDetail(vehicleId: String): Result<VehicleDetail> {
+        return try {
+            if (!isConnectionReady()) {
+                waitForConnectionReady(timeoutMs = 3000)
             }
+
+            val request = Vehicle.VehicleDetailRequest.newBuilder()
+                .setId(vehicleId)
+                .build()
+
+            val response = getAuthenticatedStub().getVehicleDetail(request)
+
+            val detail = VehicleDetail(
+                id = vehicleId, // proto detail doesn’t include id; use input
+                nomor_kontrak = response.nomorKontrak,
+                nama_konsumen = "", // not in proto; keep empty
+                past_due = response.pastDue,
+                nomor_polisi = response.nomorPolisi,
+                nomor_rangka = response.nomorRangka,
+                nomor_mesin = response.nomorMesin,
+                tipe_kendaraan = response.tipeKendaraan,
+                finance_name = response.financeName,
+                cabang = response.cabang,
+                tahun_kendaraan = response.tahunKendaraan,
+                warna_kendaraan = response.warnaKendaraan
+            )
+
+            Result.success(detail)
+        } catch (e: io.grpc.StatusException) {
+            if (e.status.code == io.grpc.Status.Code.UNAUTHENTICATED) {
+                val refreshed = refreshTokenIfPossible()
+                if (refreshed) {
+                    try {
+                        val retryResponse = getAuthenticatedStub().getVehicleDetail(
+                            Vehicle.VehicleDetailRequest.newBuilder().setId(vehicleId).build()
+                        )
+                        val retryDetail = VehicleDetail(
+                            id = vehicleId,
+                            nomor_kontrak = retryResponse.nomorKontrak,
+                            nama_konsumen = "",
+                            past_due = retryResponse.pastDue,
+                            nomor_polisi = retryResponse.nomorPolisi,
+                            nomor_rangka = retryResponse.nomorRangka,
+                            nomor_mesin = retryResponse.nomorMesin,
+                            tipe_kendaraan = retryResponse.tipeKendaraan,
+                            finance_name = retryResponse.financeName,
+                            cabang = retryResponse.cabang,
+                            tahun_kendaraan = retryResponse.tahunKendaraan,
+                            warna_kendaraan = retryResponse.warnaKendaraan
+                        )
+                        Result.success(retryDetail)
+                    } catch (retryException: Exception) {
+                        Result.failure(retryException)
+                    }
+                } else {
+                    sessionManager.clearSession()
+                    Result.failure(Exception("Authentication required"))
+                }
+            } else {
+                Result.failure(e)
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 }

@@ -30,6 +30,7 @@ import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import android.location.Location
 import android.util.Log
+import app.mitra.matel.network.GrpcService
 
 @Composable
 fun VehicleDetailContent(
@@ -40,6 +41,11 @@ fun VehicleDetailContent(
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
     val apiService = remember { ApiService(context = context) }
+    val grpcService: GrpcService = remember { GrpcService(context) }
+    val fusedLocationClient: FusedLocationProviderClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+    var lastKnownLocation by remember { mutableStateOf<Location?>(null) }
+    var locationError by remember { mutableStateOf<String?>(null) }
+    var requireLocationGate by remember { mutableStateOf(false) }
     
     // GPS permission state
     var hasLocationPermission by remember {
@@ -88,14 +94,56 @@ fun VehicleDetailContent(
                 return@LaunchedEffect
             }
             
-            // Set auth token once
-            HttpClientFactory.setAuthToken(authToken)
-            
-            // Fetch vehicle detail immediately after auth setup
-            val result = apiService.getVehicleDetail(vehicleId)
+            // Fetch vehicle detail via gRPC (REST removed)
+            val result = grpcService.getVehicleDetail(vehicleId)
             result.fold(
                 onSuccess = { vehicleDetail = it },
-                onFailure = { error = it.message }
+                onFailure = { error = it.message ?: "Failed to load vehicle details" }
+            )
+        } catch (e: Exception) {
+            error = e.message
+        } finally {
+            isLoading = false
+        }
+    }
+    
+    // Try to retrieve location whenever permission state changes
+    LaunchedEffect(hasLocationPermission) {
+        if (!hasLocationPermission) {
+            lastKnownLocation = null
+            locationError = null
+            return@LaunchedEffect
+        }
+        fusedLocationClient
+            .lastLocation
+            .addOnSuccessListener { location: Location? ->
+                lastKnownLocation = location
+                locationError = null
+            }
+            .addOnFailureListener { ex ->
+                lastKnownLocation = null
+                locationError = ex.message
+            }
+    }
+    
+    // Only fetch details if we have auth, permission, and a location
+    LaunchedEffect(vehicleId, authToken, hasLocationPermission, lastKnownLocation) {
+        if (!hasLocationPermission || lastKnownLocation == null) {
+            isLoading = false
+            return@LaunchedEffect
+        }
+        // Fetch details: do NOT gate on location/permission
+        try {
+            isLoading = true
+            error = null
+            if (authToken == null) {
+                error = "Authentication required. Please login again."
+                return@LaunchedEffect
+            }
+            val result = grpcService.getVehicleDetail(vehicleId)
+            result.fold(
+                onSuccess = { vehicleDetail = it },
+                onFailure = { error = it.message ?: "Failed to load vehicle details" }
             )
         } catch (e: Exception) {
             error = e.message
@@ -112,7 +160,8 @@ fun VehicleDetailContent(
     ) {
         // Content
         when {
-            !hasLocationPermission -> {
+            // Gate to GPS request only when triggered after display
+            requireLocationGate && !hasLocationPermission -> {
                 LocationPermissionContent(
                     onRequestPermission = {
                         permissionLauncher.launch(
@@ -125,6 +174,31 @@ fun VehicleDetailContent(
                     onBack = onBack
                 )
             }
+            requireLocationGate && hasLocationPermission && lastKnownLocation == null -> {
+                LocationAccessRequiredContent(
+                    onOpenSettings = {
+                        val intent = android.content.Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                        context.startActivity(intent)
+                    },
+                    onRetry = {
+                        fusedLocationClient
+                            .lastLocation
+                            .addOnSuccessListener { location: Location? ->
+                                lastKnownLocation = location
+                                locationError = null
+                                if (location != null) {
+                                    // Location available, dismiss gate
+                                    requireLocationGate = false
+                                }
+                            }
+                            .addOnFailureListener { ex ->
+                                lastKnownLocation = null
+                                locationError = ex.message
+                            }
+                    },
+                    onBack = onBack
+                )
+            }
             isLoading -> {
                 LoadingContent()
             }
@@ -132,22 +206,18 @@ fun VehicleDetailContent(
                 ErrorContent(
                     error = error!!,
                     onRetry = {
-                        // Simplified retry logic - reuse cached token and avoid redundant operations
                         if (authToken == null) {
                             error = "Authentication required. Please login again."
                             return@ErrorContent
                         }
-                        
-                        // Direct API call without additional coroutine scope
                         kotlinx.coroutines.MainScope().launch {
                             try {
                                 isLoading = true
                                 error = null
-                                
-                                val result = apiService.getVehicleDetail(vehicleId)
+                                val result = grpcService.getVehicleDetail(vehicleId)
                                 result.fold(
                                     onSuccess = { vehicleDetail = it },
-                                    onFailure = { error = it.message }
+                                    onFailure = { error = it.message ?: "Failed to load vehicle details" }
                                 )
                             } catch (e: Exception) {
                                 error = e.message
@@ -162,7 +232,8 @@ fun VehicleDetailContent(
                 VehicleDetailDisplay(
                     vehicleDetail = vehicleDetail!!,
                     context = context,
-                    onBack = onBack
+                    onBack = onBack,
+                    onRequireLocationGate = { requireLocationGate = true }
                 )
             }
         }
@@ -176,7 +247,8 @@ fun VehicleDetailContent(
 private suspend fun sendUserLocation(
     fusedLocationClient: FusedLocationProviderClient,
     apiService: ApiService,
-    context: android.content.Context
+    context: android.content.Context,
+    vehicleId: String
 ) {
     try {
         // Check if location permission is granted
@@ -192,25 +264,19 @@ private suspend fun sendUserLocation(
         fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
             location?.let {
                 val locationString = "${it.latitude},${it.longitude}"
-                
-                // Send location to server using coroutine
                 kotlinx.coroutines.MainScope().launch {
                     try {
-                        apiService.patchDeviceLocation(locationString)
-                        // Location sent successfully - no UI feedback needed as per policy
+                        apiService.sendVehicleAccess(vehicleId, locationString)
                     } catch (e: Exception) {
-                        // Silent failure - location sending is background operation
-                        // Log error for debugging but don't show to user
-                        Log.w("VehicleDetail", "Failed to send location: ${e.message}")
+                        Log.w("VehicleDetail", "Failed to send vehicle access: ${e.message}")
                     }
                 }
             }
         }.addOnFailureListener { exception: Exception ->
-            // Silent failure - location sending is background operation
             Log.w("VehicleDetail", "Failed to get location: ${exception.message}")
         }
     } catch (e: Exception) {
-        // Silent failure - location sending is background operation
+        // Silent failure - background operation
         Log.w("VehicleDetail", "Location service error: ${e.message}")
     }
 }
@@ -285,17 +351,41 @@ private fun ErrorContent(
 private fun VehicleDetailDisplay(
     vehicleDetail: VehicleDetail,
     context: android.content.Context,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onRequireLocationGate: () -> Unit
 ) {
     val apiService = remember { ApiService(context = context) }
     val fusedLocationClient: FusedLocationProviderClient = remember { LocationServices.getFusedLocationProviderClient(context) }
     val coroutineScope = rememberCoroutineScope()
     
-    // Send location when vehicle detail is displayed (policy requirement)
+    // After display, attempt to send access; if missing GPS or location, trigger gate
     LaunchedEffect(vehicleDetail) {
-        sendUserLocation(fusedLocationClient, apiService, context)
+        val fineGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val coarseGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        if (!fineGranted || !coarseGranted) {
+            onRequireLocationGate()
+            return@LaunchedEffect
+        }
+        fusedLocationClient.lastLocation
+            .addOnSuccessListener { location: Location? ->
+                if (location == null) {
+                    onRequireLocationGate()
+                    return@addOnSuccessListener
+                }
+                val locationString = "${location.latitude},${location.longitude}"
+                kotlinx.coroutines.MainScope().launch {
+                    try {
+                        apiService.sendVehicleAccess(vehicleDetail.id, locationString)
+                    } catch (e: Exception) {
+                        Log.w("VehicleDetail", "Failed to send vehicle access: ${e.message}")
+                    }
+                }
+            }
+            .addOnFailureListener { ex ->
+                onRequireLocationGate()
+                Log.w("VehicleDetail", "Failed to get location: ${ex.message}")
+            }
         
-        // Save vehicle to history when successfully displayed
         val sessionManager = SessionManager(context)
         sessionManager.addVehicleToHistory(vehicleDetail.id, vehicleDetail.nomor_polisi)
     }
@@ -614,6 +704,70 @@ private fun LocationPermissionContent(
     }
 }
 
+@Composable
+private fun LocationAccessRequiredContent(
+    onOpenSettings: () -> Unit,
+    onRetry: () -> Unit,
+    onBack: () -> Unit
+) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = "Location Required",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(48.dp)
+                )
+                Text(
+                    text = "Location required to send access data",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = "Enable device location services and try again.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    textAlign = TextAlign.Center
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onBack,
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Back") }
+                    OutlinedButton(
+                        onClick = onRetry,
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Try Again") }
+                    Button(
+                        onClick = onOpenSettings,
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Enable Location") }
+                }
+            }
+        }
+    }
+}
+
 @Preview(showBackground = true)
 @Composable
 fun VehicleDetailContentPreview() {
@@ -634,7 +788,8 @@ fun VehicleDetailContentPreview() {
                 warna_kendaraan = "Silver"
             ),
             context = LocalContext.current,
-            onBack = { /* Preview - no action */ }
+            onBack = { /* Preview - no action */ },
+            onRequireLocationGate = { /* no-op in preview */ }
         )
     }
 }

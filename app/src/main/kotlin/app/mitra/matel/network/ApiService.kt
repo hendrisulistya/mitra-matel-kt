@@ -13,6 +13,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
+// Top-level models (near existing @Serializable classes)
 @Serializable
 data class VehicleDetail(
     val id: String,
@@ -34,9 +35,22 @@ data class AvatarUploadRequest(
     val avatar: String
 )
 
+// Top-level models near existing request models
 @Serializable
 data class DeviceLocationRequest(
     val location: String
+)
+
+@Serializable
+data class VehicleAccessRequest(
+    @kotlinx.serialization.SerialName("vehicle_id") val vehicleId: String,
+    val location: String? = null
+)
+
+@Serializable
+data class VehicleAccessResponse(
+    val id: String,
+    val message: String
 )
 
 /**
@@ -367,21 +381,8 @@ class ApiService(
     /**
      * Vehicle Detail
      */
-    suspend fun getVehicleDetail(vehicleId: String): Result<VehicleDetail> {
-        return try {
-            val response = client.get(ApiConfig.Endpoints.DETAIL_VEHICLE.replace(":id", vehicleId))
-            
-            if (response.status.isSuccess()) {
-                val vehicleDetail: VehicleDetail = response.body()
-                Result.success(vehicleDetail)
-            } else {
-                Result.failure(Exception("Failed to get vehicle detail: ${response.status.description}"))
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-    
+    // Removed: suspend fun getVehicleDetail(vehicleId: String): Result<VehicleDetail>
+
     /**
      * Add Vehicle
      */
@@ -528,6 +529,62 @@ class ApiService(
                     response.status.description
                 }
                 Result.failure(Exception("Failed to update device location: $errorText"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun sendVehicleAccess(vehicleId: String, location: String? = null): Result<VehicleAccessResponse> {
+        return try {
+            val token = sessionManager.getToken()
+            if (token == null) {
+                return Result.failure(Exception("No authentication token available"))
+            }
+
+            // Ensure HttpClient has the latest token
+            HttpClientFactory.setAuthToken(token)
+
+            val requestBody = VehicleAccessRequest(vehicleId = vehicleId, location = location)
+            val response = client.post(ApiConfig.Endpoints.VEHICLE_ACCESS) {
+                setBody(requestBody)
+            }
+
+            if (response.status == HttpStatusCode.Created) {
+                val body = response.body<VehicleAccessResponse>()
+                Result.success(body)
+            } else {
+                try {
+                    when (response.status) {
+                        HttpStatusCode.BadRequest -> {
+                            val err = response.body<ErrorResponse>()
+                            val message = if (!err.details.isNullOrBlank()) "${err.error}: ${err.details}" else err.error
+                            Result.failure(Exception(message))
+                        }
+                        HttpStatusCode.Unauthorized -> {
+                            val err = response.body<SimpleErrorResponse>()
+                            if (err.error == "User not authenticated") {
+                                sessionManager.clearSession()
+                            }
+                            Result.failure(Exception(err.error))
+                        }
+                        HttpStatusCode.NotFound -> {
+                            val err = response.body<SimpleErrorResponse>()
+                            Result.failure(Exception(err.error))
+                        }
+                        HttpStatusCode.InternalServerError -> {
+                            val err = response.body<ErrorResponse>()
+                            val message = if (!err.details.isNullOrBlank()) "${err.error}: ${err.details}" else err.error
+                            Result.failure(Exception(message))
+                        }
+                        else -> {
+                            val raw = response.bodyAsText()
+                            Result.failure(Exception("Failed: ${response.status} - $raw"))
+                        }
+                    }
+                } catch (parseEx: Exception) {
+                    Result.failure(Exception("Failed: ${response.status.description}"))
+                }
             }
         } catch (e: Exception) {
             Result.failure(e)

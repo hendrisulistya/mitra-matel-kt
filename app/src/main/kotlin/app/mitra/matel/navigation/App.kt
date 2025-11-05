@@ -225,7 +225,9 @@ fun App() {
                         navController.navigate("mic_search")
                     },
                     onNavigateToVehicleDetail = { vehicleId ->
-                        navController.navigate("vehicle_detail/$vehicleId")
+                        navController.navigate("vehicle_detail/$vehicleId") {
+                            launchSingleTop = true
+                        }
                     },
                     onNavigateBack = {
                         navController.navigate("dashboard") {
