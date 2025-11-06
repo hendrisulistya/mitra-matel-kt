@@ -1077,6 +1077,7 @@ private fun shareAsImage(context: android.content.Context, vehicleDetail: Vehicl
  */
 private fun shareToWhatsApp(context: android.content.Context, vehicleDetail: VehicleDetail) {
     val shareText = buildString {
+        append("=========MITRA APP=========\n")
         append("Detail Kendaraan:\n")
         append("Nomor Kontrak: ${vehicleDetail.nomor_kontrak}\n")
         append("Nama Konsumen: ${vehicleDetail.nama_konsumen}\n")
@@ -1088,7 +1089,9 @@ private fun shareToWhatsApp(context: android.content.Context, vehicleDetail: Veh
         append("Finance: ${vehicleDetail.finance_name}\n")
         append("Cabang: ${vehicleDetail.cabang}\n")
         append("Tahun: ${vehicleDetail.tahun_kendaraan}\n")
-        append("Warna: ${vehicleDetail.warna_kendaraan}")
+        append("Warna: ${vehicleDetail.warna_kendaraan}\n")
+        append("\n")
+        append("*Peringatan: Aplikasi ini hanya sebagai alat bantu. Konsultasikan terlebih dahulu ke pihak terkait.*")
     }
 
     try {
