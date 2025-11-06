@@ -821,7 +821,7 @@ private fun shareAsImage(context: android.content.Context, vehicleDetail: Vehicl
 
         // Paint for text
         val headerPaint = Paint().apply {
-            color = android.graphics.Color.parseColor("#1976D2")
+            color = android.graphics.Color.parseColor("#000000") // Purple color similar to Material primary
             textSize = 56f
             typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD)
             isAntiAlias = true
@@ -842,10 +842,12 @@ private fun shareAsImage(context: android.content.Context, vehicleDetail: Vehicl
         }
 
         val disclaimerPaint = Paint().apply {
-            color = android.graphics.Color.parseColor("#666666")
+            color = android.graphics.Color.BLACK
             textSize = 28f
             isAntiAlias = true
             textAlign = Paint.Align.CENTER
+            typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT_BOLD, android.graphics.Typeface.ITALIC)
+            isFakeBoldText = true
         }
 
         var y = 80f
@@ -854,10 +856,19 @@ private fun shareAsImage(context: android.content.Context, vehicleDetail: Vehicl
 
         // Header - MITRA APP
         canvas.drawText("MITRA APP", width / 2f, y, headerPaint)
-        y += 90f
+        y += 120f // Increased space between header and detail data
 
-        // Draw each field - very compact spacing
-        fun drawField(label: String, value: String) {
+        // Draw each field with separators
+        fun drawField(label: String, value: String, drawSeparator: Boolean = true) {
+            // Draw line separator between fields
+            if (drawSeparator) {
+                val separatorPaint = Paint().apply {
+                    color = android.graphics.Color.parseColor("#E0E0E0") // Light gray separator
+                    strokeWidth = 1f
+                }
+                canvas.drawLine(leftMargin, y - 10f, rightMargin, y - 10f, separatorPaint)
+            }
+            
             canvas.drawText(label, leftMargin, y, labelPaint)
             y += 42f
 
@@ -904,12 +915,111 @@ private fun shareAsImage(context: android.content.Context, vehicleDetail: Vehicl
         drawField("Cabang", vehicleDetail.cabang)
         drawField("Past Due", vehicleDetail.past_due)
 
-        // Add disclaimer at bottom
-        val disclaimerY = height - 100f
-        val disclaimerText = "App ini bukan alat penarikan yang sah,"
-        val disclaimerText2 = "konsultasikan ke finance terkait"
-        canvas.drawText(disclaimerText, width / 2f, disclaimerY, disclaimerPaint)
-        canvas.drawText(disclaimerText2, width / 2f, disclaimerY + 35f, disclaimerPaint)
+        // Draw PNG image watermark with 30% opacity
+        val watermarkPaint = Paint().apply {
+            alpha = (255 * 0.15).toInt() // 30% opacity
+        }
+        
+        try {
+            val inputStream = context.resources.openRawResource(context.resources.getIdentifier("back_image", "raw", context.packageName))
+            val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
+            inputStream.close()
+            
+            if (bitmap != null) {
+                // Center the image in the detail area
+                val bitmapWidth = bitmap.width.toFloat()
+                val bitmapHeight = bitmap.height.toFloat()
+                val x = (width - bitmapWidth) / 2f
+                val y = (height - bitmapHeight) / 2f
+                
+                canvas.drawBitmap(bitmap, x, y, watermarkPaint)
+            }
+        } catch (e: Exception) {
+            // Fallback to simple text if image loading fails
+            val fallbackPaint = Paint().apply {
+                color = android.graphics.Color.parseColor("#4D000000") // Black with 30% opacity
+                textSize = 36f
+                isAntiAlias = true
+                textAlign = Paint.Align.CENTER
+            }
+            
+            val text = "MITRA APP"
+            val x = width / 2f
+            val y = height / 2f
+            canvas.drawText(text, x, y, fallbackPaint)
+        }
+
+        // Add compact disclaimer box at bottom with proper text integration
+        val disclaimerText = "Peringatan: Aplikasi ini bukan alat penarikan yang sah, konsultasikan ke pihak terkait"
+        val maxBoxWidth = width * 0.9f // 90% of screen width
+        val boxPadding = 30f // Increased padding for better spacing
+        val cornerRadius = 16f // Fixed corner radius
+        
+        // Calculate dynamic box height based on wrapped text
+        val textPadding = 25f // Generous internal text padding
+        val availableWidth = maxBoxWidth - textPadding * 2
+        val words = disclaimerText.split(" ")
+        var currentLine = ""
+        var lineCount = 1
+        var lineHeight = 0f
+        
+        // First pass: calculate required box height
+        words.forEach { word ->
+            val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
+            if (disclaimerPaint.measureText(testLine) <= availableWidth) {
+                currentLine = testLine
+            } else {
+                lineCount++
+                currentLine = word
+            }
+        }
+        
+        // Calculate box dimensions
+        val lineSpacing = 10f
+        val textHeight = disclaimerPaint.textSize * lineCount + lineSpacing * (lineCount - 1)
+        val boxHeight = textHeight + textPadding * 2
+        val boxWidth = maxBoxWidth
+        val boxX = (width - boxWidth) / 2f
+        val boxY = height - boxHeight - 40f
+        
+        // Draw rounded rectangle background
+        val boxPaint = Paint().apply {
+            color = android.graphics.Color.parseColor("#F0F0F0") // Light gray background
+            style = Paint.Style.FILL
+            isAntiAlias = true
+        }
+        val borderPaint = Paint().apply {
+            color = android.graphics.Color.parseColor("#CCCCCC") // Light gray border
+            style = Paint.Style.STROKE
+            strokeWidth = 1.5f // Very thin border
+            isAntiAlias = true
+        }
+        
+        // Draw background with rounded corners
+        canvas.drawRoundRect(boxX, boxY, boxX + boxWidth, boxY + boxHeight, cornerRadius, cornerRadius, boxPaint)
+        // Draw border with rounded corners
+        canvas.drawRoundRect(boxX, boxY, boxX + boxWidth, boxY + boxHeight, cornerRadius, cornerRadius, borderPaint)
+        
+        // Draw wrapped text perfectly centered within box
+        currentLine = ""
+        var lineY = boxY + textPadding + disclaimerPaint.textSize
+        
+        words.forEach { word ->
+            val testLine = if (currentLine.isEmpty()) word else "$currentLine $word"
+            if (disclaimerPaint.measureText(testLine) <= availableWidth) {
+                currentLine = testLine
+            } else {
+                // Draw current line centered
+                canvas.drawText(currentLine, boxX + boxWidth / 2f, lineY, disclaimerPaint)
+                lineY += disclaimerPaint.textSize + lineSpacing
+                currentLine = word
+            }
+        }
+        
+        // Draw the last line
+        if (currentLine.isNotEmpty()) {
+            canvas.drawText(currentLine, boxX + boxWidth / 2f, lineY, disclaimerPaint)
+        }
 
         // Save bitmap to cache
         val cachePath = File(context.cacheDir, "images")
