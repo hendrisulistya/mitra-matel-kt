@@ -11,7 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.content.ContextCompat
-import app.mitra.matel.navigation.App
+import app.mitra.matel.navigation.app
 
 class MainActivity : ComponentActivity() {
     
@@ -40,7 +40,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             // Main App Content
-            App()
+            app()
         }
     }
     
@@ -92,6 +92,6 @@ class MainActivity : ComponentActivity() {
 
 @Preview
 @Composable
-fun AppAndroidPreview() {
-    App()
+fun appAndroidPreview() {
+    app()
 }

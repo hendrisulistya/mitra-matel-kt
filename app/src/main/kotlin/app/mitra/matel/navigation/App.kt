@@ -45,7 +45,7 @@ import kotlinx.coroutines.flow.collect
 
 @Composable
 @Preview
-fun App() {
+fun app() {
     MitraMatelTheme {
         val context = LocalContext.current
     val sessionManager = remember { SessionManager.getInstance(context) }
