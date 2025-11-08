@@ -2,10 +2,16 @@ package app.mitra.matel.utils
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Location
 import android.os.Build
 import android.provider.Settings
+import androidx.core.content.ContextCompat
 import app.mitra.matel.network.models.DeviceInfo
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 import java.util.*
+import kotlinx.coroutines.*
 
 object DeviceUtils {
     
@@ -50,9 +56,63 @@ object DeviceUtils {
     }
     
     /**
+     * Get device location if available
+     */
+    suspend fun getDeviceLocation(context: Context): String? {
+        return withContext(Dispatchers.IO) {
+            try {
+                // Check location permissions
+                val hasFineLocation = ContextCompat.checkSelfPermission(
+                    context, 
+                    android.Manifest.permission.ACCESS_FINE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
+                
+                val hasCoarseLocation = ContextCompat.checkSelfPermission(
+                    context, 
+                    android.Manifest.permission.ACCESS_COARSE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
+                
+                if (!hasFineLocation && !hasCoarseLocation) {
+                    return@withContext null
+                }
+                
+                // Get location using callback pattern (simpler approach)
+                val fusedLocationClient: FusedLocationProviderClient = 
+                    LocationServices.getFusedLocationProviderClient(context)
+                
+                var locationResult: Location? = null
+                var locationError: Exception? = null
+                
+                val latch = CompletableDeferred<Unit>()
+                
+                fusedLocationClient.lastLocation
+                    .addOnSuccessListener { location: Location? ->
+                        locationResult = location
+                        latch.complete(Unit)
+                    }
+                    .addOnFailureListener { exception ->
+                        locationError = exception
+                        latch.complete(Unit)
+                    }
+                
+                // Wait for the callback to complete
+                latch.await()
+                
+                locationResult?.let {
+                    "${it.latitude},${it.longitude}"
+                } ?: run {
+                    null
+                }
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
+    
+    /**
      * Get complete device information
      */
-    fun getDeviceInfo(context: Context): DeviceInfo {
+    suspend fun getDeviceInfo(context: Context): DeviceInfo {
         return DeviceInfo(
             deviceId = getDeviceId(context),
             model = getDeviceModel()

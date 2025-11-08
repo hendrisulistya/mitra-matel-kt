@@ -447,7 +447,7 @@ fun AnnouncementDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "DATA HMF OKTOBER SUDAH DITAMBAHAKAN",
+                        text = "DATA UPDATE NOVEMBER TELAH DITAMBAHAKAN",
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(12.dp),
                         color = MaterialTheme.colorScheme.onPrimaryContainer

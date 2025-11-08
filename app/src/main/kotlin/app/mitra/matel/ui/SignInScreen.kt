@@ -216,24 +216,42 @@ fun SignInScreen(
     // Conflict Modal
     if (loginState is AuthState.Conflict) {
         val conflict = (loginState as AuthState.Conflict).data
+        
+        // Determine dialog content based on conflict type
+        val isSecurityIssue = conflict.securityIssue == true
+        val requiresSupport = conflict.requiresSupport == true
+        val isDeviceTransfer = conflict.deviceTransferRequired == true
+        val requiredAction = conflict.requiredAction
+        
         AlertDialog(
             onDismissRequest = { viewModel.resetState() },
             title = {
                 Column {
                     Text(
-                        text = "Perangkat Ganda Terdeteksi",
+                        text = when {
+                            isSecurityIssue -> "Masalah Keamanan"
+                            requiresSupport -> "Bantuan Diperlukan"
+                            isDeviceTransfer -> "Transfer Perangkat"
+                            else -> "Perangkat Ganda Terdeteksi"
+                        },
                         style = MaterialTheme.typography.titleLarge
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = conflict.error ?: conflict.message ?: "Anda telah login di perangkat lain.",
+                        text = conflict.error ?: conflict.message ?: when {
+                            isSecurityIssue -> "Terdeteksi aktivitas mencurigakan. Hubungi admin."
+                            requiresSupport -> "Perlu bantuan admin untuk melanjutkan."
+                            isDeviceTransfer -> "Perangkat ini sebelumnya digunakan oleh pengguna lain."
+                            else -> "Anda telah login di perangkat lain."
+                        },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // Show device information card
                     Card(
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant
@@ -264,33 +282,84 @@ fun SignInScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            
+                            // Show device owner if available (for transfer scenarios)
+                            conflict.deviceOwner?.let { owner ->
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = "Pemilik Sebelumnya: ${owner.email}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                owner.lastLogin?.let { lastLogin ->
+                                    Text(
+                                        text = "Login Terakhir: $lastLogin",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
                         }
                     }
+                    
+                    // Show appropriate message based on conflict type
                     Text(
-                        text = "Anda dapat melanjutkan login di perangkat ini.",
+                        text = when {
+                            isSecurityIssue -> "Hubungi admin untuk verifikasi keamanan."
+                            requiresSupport -> "Silakan hubungi admin untuk bantuan lebih lanjut."
+                            isDeviceTransfer -> "Konfirmasi apakah Anda ingin mengambil alih perangkat ini."
+                            else -> "Anda dapat melanjutkan login di perangkat ini."
+                        },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    
+                    // Show warning for security issues
+                    if (isSecurityIssue || requiresSupport) {
+                        Text(
+                            text = "⚠️ Jangan lanjutkan tanpa persetujuan admin.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             },
             confirmButton = {
-                Button(
-                    onClick = {
-                        val sanitizedEmail = email.trim().lowercase(Locale.ROOT)
-                        if (!isAllowedEmail(sanitizedEmail)) {
-                            errorMessage = "Format email tidak valid."
-                        } else {
-                            viewModel.forceLogin(sanitizedEmail, password)
+                // Only show confirm button for non-security issues and non-support required cases
+                if (!isSecurityIssue && !requiresSupport) {
+                    Button(
+                        onClick = {
+                            val sanitizedEmail = email.trim().lowercase(Locale.ROOT)
+                            if (!isAllowedEmail(sanitizedEmail)) {
+                                errorMessage = "Format email tidak valid."
+                            } else {
+                                viewModel.forceLogin(sanitizedEmail, password)
+                            }
+                        },
+                        enabled = loginState !is AuthState.Loading
+                    ) {
+                        Text(when {
+                            isDeviceTransfer -> "Ambil Alih Perangkat"
+                            else -> "Tetap Masuk"
+                        })
+                    }
+                } else {
+                    // For security issues, show contact admin button
+                    Button(
+                        onClick = {
+                            val message = "Halo admin, saya mengalami masalah keamanan/login."
+                            val adminPhone = "6281936706368"
+                            openAdminWhatsApp(context, adminPhone, message)
+                            viewModel.resetState()
                         }
-                    },
-                    enabled = loginState !is AuthState.Loading
-                ) {
-                    Text("Tetap Masuk")
+                    ) {
+                        Text("Hubungi Admin")
+                    }
                 }
             },
             dismissButton = {
                 OutlinedButton(onClick = { viewModel.resetState() }) {
-                    Text("Batal")
+                    Text(if (isSecurityIssue || requiresSupport) "Tutup" else "Batal")
                 }
             }
         )

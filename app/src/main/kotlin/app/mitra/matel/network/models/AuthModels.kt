@@ -20,7 +20,9 @@ data class DeviceInfo(
 data class LoginRequest(
     val email: String,
     val password: String,
-    val device: DeviceInfo?
+    val device: DeviceInfo?,
+    @SerialName("last_location") val lastLocation: String? = null,
+    @SerialName("confirm_device_transfer") val confirmDeviceTransfer: Boolean? = null
 )
 
 @Serializable
@@ -98,15 +100,24 @@ data class DeviceConflictResponse(
     @SerialName("requested_device") val requestedDevice: DeviceRecord,
     @SerialName("force_login_required") val forceLoginRequired: Boolean? = null,
     @SerialName("device_transfer_required") val deviceTransferRequired: Boolean? = null,
-    @SerialName("use_force_login") val useForceLogin: Boolean? = null, // Deprecated field
     val error: String? = null,
     val message: String? = null,
-    val warning: String? = null
+    val warning: String? = null,
+    @SerialName("security_issue") val securityIssue: Boolean? = null,
+    @SerialName("requires_support") val requiresSupport: Boolean? = null,
+    @SerialName("device_owner") val deviceOwner: DeviceOwner? = null,
+    @SerialName("required_action") val requiredAction: String? = null
 ) {
-    // Helper property to get force login requirement, prioritizing new field over deprecated one
+    // Helper property to get force login requirement
     val shouldForceLogin: Boolean
-        get() = forceLoginRequired ?: useForceLogin ?: false
+        get() = forceLoginRequired ?: false
 }
+
+@Serializable
+data class DeviceOwner(
+    val email: String,
+    @SerialName("last_login") val lastLogin: String? = null
+)
 
 @Serializable
 data class AddVehicleRequest(

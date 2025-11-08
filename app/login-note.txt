@@ -1,0 +1,296 @@
+## 1. Regular Login Examples
+### ✅ Successful Login (No Device Change)
+Request:
+
+```
+{
+  "email": "user@example.com",
+  "password": "password123",
+  "device": {
+    "device_id": "user-existing-device",
+    "model": "iPhone 15"
+  },
+  "last_location": "40.753,-73.983"
+}
+```
+Response (200 OK):
+
+```
+{
+  "token": 
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+  "
+}
+```
+### ⚠️ Device Mismatch (Same User - Force Login Required)
+Request:
+
+```
+{
+  "email": "user@example.com",
+  "password": "password123",
+  "device": {
+    "device_id": "user-new-device",
+    "model": "Samsung Galaxy"
+  }
+}
+```
+Response (409 Conflict):
+
+```
+{
+  "error": "Device mismatch detected",
+  "message": "You are already logged in 
+  on another device. Please use force 
+  login if you want to switch devices.",
+  "current_device": {
+    "id": 
+    "550e8400-e29b-41d4-a716-446655440000"
+    ,
+    "device_id": "user-existing-device",
+    "model": "iPhone 15",
+    "last_login": "2024-01-15T10:30:00Z",
+    "last_ip": "192.168.1.100",
+    "last_location": "40.753,-73.983",
+    "created_at": "2024-01-01T00:00:00Z",
+    "deleted_at": "0001-01-01T00:00:00Z"
+  },
+  "requested_device": {
+    "id": 
+    "00000000-0000-0000-0000-000000000000"
+    ,
+    "device_id": "user-new-device",
+    "model": "Samsung Galaxy",
+    "last_login": "0001-01-01T00:00:00Z",
+    "last_ip": "192.168.1.101",
+    "last_location": "",
+    "created_at": "0001-01-01T00:00:00Z",
+    "deleted_at": "0001-01-01T00:00:00Z"
+  },
+  "device_transfer_required": false,
+  "force_login_required": true
+}
+```
+### ⚠️ Device Transfer Required (Device Belongs to Another User)
+Request:
+
+```
+{
+  "email": "user@example.com",
+  "password": "password123",
+  "device": {
+    "device_id": "other-user-device",
+    "model": "iPad Pro"
+  }
+}
+```
+Response (409 Conflict):
+
+```
+{
+  "error": "Device mismatch detected",
+  "message": "The requested device is 
+  currently assigned to another account. 
+  Force login will transfer the device to 
+  your account.",
+  "current_device": {
+    "id": 
+    "00000000-0000-0000-0000-000000000000"
+    ,
+    "device_id": "none",
+    "model": "none",
+    "last_login": "0001-01-01T00:00:00Z",
+    "last_ip": "",
+    "last_location": "",
+    "created_at": "0001-01-01T00:00:00Z",
+    "deleted_at": "0001-01-01T00:00:00Z"
+  },
+  "requested_device": {
+    "id": 
+    "660e8400-e29b-41d4-a716-446655440001"
+    ,
+    "device_id": "other-user-device",
+    "model": "iPad Pro",
+    "last_login": "2024-01-14T15:45:00Z",
+    "last_ip": "192.168.1.102",
+    "last_location": "40.753,-73.983",
+    "created_at": "2024-01-10T00:00:00Z",
+    "deleted_at": "0001-01-01T00:00:00Z"
+  },
+  "device_transfer_required": true,
+  "force_login_required": true
+}
+```
+### 🔒 Security Issue Detected
+Response (409 Conflict):
+
+```
+{
+  "error": "Security issue detected",
+  "message": "Your current device is 
+  associated with multiple accounts. 
+  Please contact support or use force 
+  login to resolve this issue.",
+  "current_device": {
+    "id": 
+    "00000000-0000-0000-0000-000000000000"
+    ,
+    "device_id": "compromised-device",
+    "model": "unknown",
+    "last_login": "0001-01-01T00:00:00Z",
+    "last_ip": "",
+    "last_location": "",
+    "created_at": "0001-01-01T00:00:00Z",
+    "deleted_at": "0001-01-01T00:00:00Z"
+  },
+  "security_issue": true,
+  "requires_support": true,
+  "force_login_required": true
+}
+```
+## 2. Force Login Examples
+### ✅ Successful Force Login (No Device Transfer)
+Request:
+
+```
+{
+  "email": "user@example.com",
+  "password": "password123",
+  "device": {
+    "device_id": "user-new-device",
+    "model": "Samsung Galaxy"
+  },
+  "location": "Chicago, IL"
+}
+```
+Response (200 OK):
+
+```
+{
+  "token": 
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+  ",
+  "message": "Force login successful. 
+  Previous device session has been 
+  terminated.",
+  "previous_device": 
+  "user-existing-device"
+}
+```
+### ✅ Successful Force Login with Device Transfer
+Request:
+
+```
+{
+  "email": "user@example.com",
+  "password": "password123",
+  "device": {
+    "device_id": "other-user-device",
+    "model": "iPad Pro"
+  },
+  "location": "Seattle, WA",
+  "confirm_device_transfer": true
+}
+```
+Response (200 OK):
+
+```
+{
+  "token": 
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+  ",
+  "message": "Force login successful. 
+  Device transferred from another account 
+  and previous device session terminated.
+  ",
+  "previous_device": 
+  "user-existing-device"
+}
+```
+### ❌ Device Transfer Confirmation Required
+Request:
+
+```
+{
+  "email": "user@example.com",
+  "password": "password123",
+  "device": {
+    "device_id": "other-user-device",
+    "model": "iPad Pro"
+  }
+}
+// Missing confirm_device_transfer field
+```
+Response (409 Conflict):
+
+```
+{
+  "error": 
+  "device_transfer_confirmation_required",
+  "message": "This device is currently 
+  assigned to another account. Explicit 
+  confirmation is required.",
+  "device_owner": {
+    "email": "other.user@example.com",
+    "last_login": "2024-01-14T15:45:00Z"
+  },
+  "required_action": "Set 
+  'confirm_device_transfer' to true in 
+  your request to transfer this device to 
+  your account."
+}
+```
+### ❌ Device Transfer Declined
+Request:
+
+```
+{
+  "email": "user@example.com",
+  "password": "password123",
+  "device": {
+    "device_id": "other-user-device",
+    "model": "iPad Pro"
+  },
+  "confirm_device_transfer": false
+}
+```
+Response (409 Conflict):
+
+```
+{
+  "error": "device_transfer_declined",
+  "message": "Device transfer was 
+  declined. This device is currently 
+  assigned to another account.",
+  "device_owner": {
+    "email": "other.user@example.com",
+    "last_login": "2024-01-14T15:45:00Z"
+  },
+  "required_action": "Set 
+  'confirm_device_transfer' to true to 
+  transfer this device to your account."
+}
+```
+## 3. Error Responses
+### ❌ Invalid Credentials (401 Unauthorized)
+```
+{
+  "error": "Invalid Email or Password"
+}
+```
+### ❌ Invalid Request Format (400 Bad Request)
+```
+{
+  "error": "Invalid request format",
+  "details": "Key: 'UserLoginRequest.
+  Email' Error:Field validation for 
+  'Email' failed on the 'email' tag"
+}
+```
+### ❌ Database Error (500 Internal Server Error)
+```
+{
+  "error": "Database error: connection 
+  refused"
+}
+```

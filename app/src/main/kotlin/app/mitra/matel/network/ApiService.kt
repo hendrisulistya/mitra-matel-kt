@@ -112,12 +112,12 @@ class ApiService(
         }
     }
     
-    suspend fun forceLogin(email: String, password: String): Result<LoginResponse> {
+    suspend fun forceLogin(email: String, password: String, confirmDeviceTransfer: Boolean? = null): Result<LoginResponse> {
         return try {
             val deviceInfo = DeviceUtils.getDeviceInfo(context)
 
             val response = client.post(ApiConfig.Endpoints.FORCE_LOGIN) {
-                setBody(LoginRequest(email, password, deviceInfo))
+                setBody(LoginRequest(email, password, deviceInfo, confirmDeviceTransfer = confirmDeviceTransfer))
             }
 
             if (response.status.isSuccess()) {

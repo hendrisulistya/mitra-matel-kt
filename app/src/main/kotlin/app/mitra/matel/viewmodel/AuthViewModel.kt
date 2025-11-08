@@ -101,11 +101,11 @@ class AuthViewModel(private val context: Context) : ViewModel() {
         _loginState.value = AuthState.Idle
     }
 
-    fun forceLogin(email: String, password: String, rememberCredentials: Boolean = true) {
+    fun forceLogin(email: String, password: String, rememberCredentials: Boolean = true, confirmDeviceTransfer: Boolean? = null) {
         viewModelScope.launch {
             _loginState.value = AuthState.Loading
 
-            val result = apiService.forceLogin(email, password)
+            val result = apiService.forceLogin(email, password, confirmDeviceTransfer)
 
             result.onSuccess { response ->
                 sessionManager.saveToken(response.token)
