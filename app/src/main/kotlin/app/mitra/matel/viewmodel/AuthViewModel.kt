@@ -32,7 +32,7 @@ sealed class RegisterState {
 class AuthViewModel(private val context: Context) : ViewModel() {
 
     private val apiService = ApiService(context = context)
-    private val sessionManager = SessionManager(context)
+    private val sessionManager = SessionManager.getInstance(context)
 
     private val _loginState = MutableStateFlow<AuthState>(AuthState.Idle)
     val loginState: StateFlow<AuthState> = _loginState.asStateFlow()

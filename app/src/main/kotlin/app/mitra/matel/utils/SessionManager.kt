@@ -12,15 +12,26 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * SessionManager - Handles secure storage of authentication data
  * Uses EncryptedSharedPreferences for secure storage with caching for performance
  * Includes fallback to regular SharedPreferences if encryption fails
  */
-class SessionManager(private val context: Context) {
+class SessionManager private constructor(private val context: Context) {
     
     companion object {
+        @Volatile
+        private var INSTANCE: SessionManager? = null
+        
+        fun getInstance(context: Context): SessionManager {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: SessionManager(context.applicationContext).also { INSTANCE = it }
+            }
+        }
         private const val TAG = "SessionManager"
         private const val PREFS_NAME = "mitra_matel_session"
         private const val FALLBACK_PREFS_NAME = "mitra_matel_session_fallback"
@@ -130,6 +141,20 @@ class SessionManager(private val context: Context) {
     private var cachedProfile: ProfileResponse? = null
     private var profileCacheValid = false
     
+    // Session state observable for UI updates
+    private val _sessionState = MutableStateFlow(isLoggedIn())
+    val sessionState: StateFlow<Boolean> = _sessionState.asStateFlow()
+    
+    // Navigation callback for session clearing events
+    private var onSessionCleared: (() -> Unit)? = null
+    
+    /**
+     * Set callback for session cleared events
+     */
+    fun setOnSessionClearedListener(callback: () -> Unit) {
+        onSessionCleared = callback
+    }
+    
     /**
      * Save authentication token
      */
@@ -145,6 +170,10 @@ class SessionManager(private val context: Context) {
             cachedLoginState = true
             tokenCacheValid = true
             loginStateCacheValid = true
+            
+            // Update session state observable
+            _sessionState.value = true
+            
             Log.d(TAG, "Token saved successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to save token: ${e.message}", e)
@@ -304,15 +333,43 @@ class SessionManager(private val context: Context) {
         try {
             sharedPreferences.edit().apply {
                 remove(KEY_TOKEN)
+                remove(KEY_EMAIL)
+                remove(KEY_PASSWORD)
                 remove(KEY_IS_LOGGED_IN)
+                // Also clear profile data to ensure complete logout
+                remove(KEY_PROFILE_ID)
+                remove(KEY_PROFILE_FULL_NAME)
+                remove(KEY_PROFILE_EMAIL)
+                remove(KEY_PROFILE_TELEPHONE)
+                remove(KEY_PROFILE_TIER)
+                remove(KEY_PROFILE_SUBSCRIPTION_STATUS)
+                remove(KEY_PROFILE_CREATED_AT)
+                remove(KEY_PROFILE_UPDATED_AT)
+                remove(KEY_PROFILE_ASSETS)
+                remove(KEY_DEVICE_ID)
+                remove(KEY_DEVICE_UUID)
+                remove(KEY_DEVICE_MODEL)
+                remove(KEY_DEVICE_LAST_LOGIN)
+                remove(KEY_ANNOUNCEMENT_DISMISSED)
+                remove(KEY_KEYBOARD_LAYOUT)
+                remove(KEY_VEHICLE_HISTORY)
                 apply()
             }
             // Clear cache
             cachedToken = null
             cachedLoginState = false
+            cachedProfile = null
             tokenCacheValid = false
             loginStateCacheValid = false
-            Log.d(TAG, "Session cleared successfully")
+            profileCacheValid = false
+            
+            // Update session state observable
+            _sessionState.value = false
+            
+            // Trigger navigation callback if set
+            onSessionCleared?.invoke()
+            
+            Log.d(TAG, "Session cleared successfully - including profile data")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to clear session: ${e.message}", e)
         }

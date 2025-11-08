@@ -108,7 +108,7 @@ fun BankAccountCard(
 @Composable
 fun PaymentAndActivationContent() {
     val context = LocalContext.current
-    val sessionManager = remember { SessionManager(context) }
+    val sessionManager = remember { SessionManager.getInstance(context) }
     
     // Get user phone number for account number generation
     val userProfile = sessionManager.getProfile()

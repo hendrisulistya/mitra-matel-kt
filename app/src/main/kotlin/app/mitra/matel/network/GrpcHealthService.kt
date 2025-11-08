@@ -1,12 +1,11 @@
 package app.mitra.matel.network
 
 import android.content.Context
+import android.util.Log
 import grpc.Health
 import grpc.HealthServiceGrpcKt
 import io.grpc.ConnectivityState
 import io.grpc.ManagedChannel
-import io.grpc.Metadata
-import io.grpc.stub.MetadataUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -17,22 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
-import app.mitra.matel.utils.SessionManager
-import app.mitra.matel.network.models.LoginRequest
-import app.mitra.matel.network.models.LoginResponse
-import app.mitra.matel.utils.DeviceUtils
 import io.grpc.StatusException
-import io.grpc.Status
-import io.ktor.client.*
-import io.ktor.client.call.*
-import io.ktor.client.engine.android.*
-import io.ktor.client.plugins.*
-import io.ktor.client.plugins.contentnegotiation.*
-import io.ktor.client.request.*
-import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
-import kotlinx.serialization.json.Json
 
 data class GrpcConnectionStatus(
     val state: ConnectivityState = ConnectivityState.IDLE,
@@ -49,37 +33,26 @@ class GrpcHealthService(
     private val channel: ManagedChannel
 ) {
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val sessionManager = SessionManager(context)
-    private val refreshMutex = Mutex()
-    private var isRefreshing = false
+    private val healthCheckMutex = Mutex()
+    private var lastHealthCheckTime = 0L
     
     private val _connectionStatus = MutableStateFlow(GrpcConnectionStatus())
     val connectionStatus: StateFlow<GrpcConnectionStatus> = _connectionStatus.asStateFlow()
-    
-    // Dynamic auth metadata - fetches fresh token on each call
-    private fun getAuthMetadata(): Metadata {
-        val metadata = Metadata()
-        sessionManager.getToken()?.let { token ->
-            val authKey = Metadata.Key.of("authorization", Metadata.ASCII_STRING_MARSHALLER)
-            metadata.put(authKey, "Bearer $token")
-        }
-        return metadata
-    }
 
-    // Base health service stub without metadata
-    private val baseHealthService by lazy {
+    // Base health service stub without authentication
+    private val healthService by lazy {
         HealthServiceGrpcKt.HealthServiceCoroutineStub(channel)
-    }
-
-    // Get authenticated stub with current token
-    @Suppress("DEPRECATION")
-    private fun getAuthenticatedStub(): HealthServiceGrpcKt.HealthServiceCoroutineStub {
-        return MetadataUtils.attachHeaders(baseHealthService, getAuthMetadata())
     }
     
     private var isMonitoring = false
     
     suspend fun checkHealth() {
+        // Prevent concurrent health checks to avoid multiple token refresh attempts
+        if (!healthCheckMutex.tryLock()) {
+            Log.d("gRPC Health", "Health check already in progress - skipping concurrent check")
+            return
+        }
+        
         try {
             // Try different service names that might be registered
             val serviceNames = listOf(
@@ -99,8 +72,11 @@ class GrpcHealthService(
                         .build()
                         
                     val startTime = System.currentTimeMillis()
-                    val response = getAuthenticatedStub().check(request)
+                    val response = healthService.check(request)
                     latency = System.currentTimeMillis() - startTime
+                    
+                    // Log health check response
+                    Log.d("gRPC Health", "Health check response: ${response.status} - Service: $serviceName")
                     
                     val isHealthy = response.status == Health.HealthCheckResponse.ServingStatus.SERVING
                     
@@ -116,38 +92,8 @@ class GrpcHealthService(
                         break
                     }
                 } catch (e: StatusException) {
-                    // Handle token expiration specifically
-                    if (e.status.code == Status.Code.UNAUTHENTICATED) {
-                        val refreshed = refreshTokenIfPossible()
-                        if (refreshed) {
-                            // Retry with new token
-                            try {
-                                val retryRequest = Health.HealthCheckRequest.newBuilder()
-                                    .setService(serviceName)
-                                    .build()
-                                val startTime = System.currentTimeMillis()
-                                val retryResponse = getAuthenticatedStub().check(retryRequest)
-                                latency = System.currentTimeMillis() - startTime
-                                
-                                val isHealthy = retryResponse.status == Health.HealthCheckResponse.ServingStatus.SERVING
-                                
-                                if (isHealthy) {
-                                    _connectionStatus.value = _connectionStatus.value.copy(
-                                        isHealthy = true,
-                                        latencyMs = latency,
-                                        lastHeartbeat = System.currentTimeMillis(),
-                                        errorMessage = null
-                                    )
-                                    healthCheckSucceeded = true
-                                    break
-                                }
-                            } catch (retryException: Exception) {
-                                // Health check retry failed
-                            }
-                        } else {
-                            sessionManager.clearSession()
-                        }
-                    }
+                    // Log gRPC error but don't handle authentication errors for health checks
+                    Log.e("gRPC Health", "StatusException: ${e.status.code} - ${e.status.description}")
                 } catch (e: Exception) {
                     // Continue to next service name
                 }
@@ -167,6 +113,9 @@ class GrpcHealthService(
                 latencyMs = 0L,
                 errorMessage = "Connection failed"
             )
+        } finally {
+            healthCheckMutex.unlock()
+            lastHealthCheckTime = System.currentTimeMillis()
         }
     }
     
@@ -225,120 +174,7 @@ class GrpcHealthService(
         }
     }
     
-    private suspend fun performHeartbeat() {
-        try {
-            // Use unary connection status check instead of streaming heartbeat
-            val request = Health.ConnectionStatusRequest.newBuilder()
-                .setClientId("android-client")
-                .setLastPing(System.currentTimeMillis())
-                .build()
-                
-            val startTime = System.currentTimeMillis()
-            val response = getAuthenticatedStub().getConnectionStatus(request)
-            val latency = System.currentTimeMillis() - startTime
-            
-            _connectionStatus.value = _connectionStatus.value.copy(
-                isHealthy = response.state == Health.ConnectionStatusResponse.ConnectionState.CONNECTED,
-                latencyMs = latency,
-                lastHeartbeat = System.currentTimeMillis(),
-                serverVersion = response.serverVersion,
-                activeConnections = response.activeConnections,
-                errorMessage = null
-            )
-            
-        } catch (e: Exception) {
-            _connectionStatus.value = _connectionStatus.value.copy(
-                isHealthy = false,
-                errorMessage = "Status check failed"
-            )
-        }
-    }
 
-    /**
-     * Attempt to refresh token using saved credentials
-     * Returns true if successful, false otherwise
-     */
-    private suspend fun refreshTokenIfPossible(): Boolean {
-        return refreshMutex.withLock {
-            if (isRefreshing) {
-                return@withLock false
-            }
-            
-            isRefreshing = true
-            
-            try {
-                val email = sessionManager.getEmail()
-                val password = sessionManager.getPassword()
-                
-                if (email.isNullOrBlank() || password.isNullOrBlank()) {
-                    return@withLock false
-                }
-                
-                // Create a simple HTTP client for token refresh
-                val refreshClient = HttpClient(Android) {
-                    install(ContentNegotiation) {
-                        json(Json {
-                            prettyPrint = true
-                            isLenient = true
-                            ignoreUnknownKeys = true
-                        })
-                    }
-                    install(HttpTimeout) {
-                        requestTimeoutMillis = 10000
-                        connectTimeoutMillis = 5000
-                        socketTimeoutMillis = 10000
-                    }
-                }
-                
-                try {
-                    val deviceInfo = DeviceUtils.getDeviceInfo(context)
-                    val loginRequest = LoginRequest(email, password, deviceInfo)
-                    val httpResponse = refreshClient.post("${ApiConfig.BASE_URL}${ApiConfig.Endpoints.LOGIN}") {
-                        contentType(ContentType.Application.Json)
-                        setBody(loginRequest)
-                    }
-                    
-                    if (httpResponse.status.isSuccess()) {
-                        val loginResponse: LoginResponse = httpResponse.body()
-                        val newToken = loginResponse.token
-                        
-                        // Update token in session manager
-                        sessionManager.saveToken(newToken)
-                        
-                        return@withLock true
-                    } else {
-                        return@withLock false
-                    }
-                } finally {
-                    refreshClient.close()
-                }
-                
-            } catch (e: Exception) {
-                return@withLock false
-            } finally {
-                isRefreshing = false
-            }
-        }
-    }
-
-    suspend fun getConnectionStatus(): GrpcConnectionStatus {
-        return try {
-            val request = Health.ConnectionStatusRequest.newBuilder()
-                .setClientId("android-client")
-                .setLastPing(System.currentTimeMillis())
-                .build()
-
-            val response = getAuthenticatedStub().getConnectionStatus(request)
-            
-            _connectionStatus.value.copy(
-                activeConnections = response.activeConnections,
-                serverVersion = response.serverVersion,
-                lastHeartbeat = response.serverTime
-            )
-        } catch (e: Exception) {
-            _connectionStatus.value.copy(errorMessage = e.message)
-        }
-    }
     
     fun stopMonitoring() {
         isMonitoring = false

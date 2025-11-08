@@ -51,7 +51,7 @@ fun VehicleDetailContent(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val sessionManager = remember { SessionManager(context) }
+    val sessionManager = remember { SessionManager.getInstance(context) }
     val apiService = remember { ApiService(context = context) }
     val grpcService: GrpcService = remember { GrpcService(context) }
     val fusedLocationClient: FusedLocationProviderClient = remember { LocationServices.getFusedLocationProviderClient(context) }
@@ -399,7 +399,7 @@ private fun VehicleDetailDisplay(
                 Log.w("VehicleDetail", "Failed to get location: ${ex.message}")
             }
         
-        val sessionManager = SessionManager(context)
+        val sessionManager = SessionManager.getInstance(context)
         sessionManager.addVehicleToHistory(vehicleDetail.id, vehicleDetail.nomor_polisi)
     }
     Column(

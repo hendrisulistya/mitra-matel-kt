@@ -41,7 +41,7 @@ fun DashboardScreen(
     initialSelectedMenuItem: String? = null
 ) {
     val context = LocalContext.current
-    val sessionManager = remember { SessionManager(context) }
+    val sessionManager = remember { SessionManager.getInstance(context) }
     val authViewModel = remember { AuthViewModel(context) }
     val profileViewModel = remember { ProfileViewModel(context) }
     val apiService = remember { app.mitra.matel.network.ApiService(context) }

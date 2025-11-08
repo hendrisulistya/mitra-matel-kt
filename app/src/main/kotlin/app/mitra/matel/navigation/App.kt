@@ -41,13 +41,14 @@ import app.mitra.matel.viewmodel.AuthState
 import app.mitra.matel.viewmodel.SearchViewModel
 import app.mitra.matel.network.NetworkDebugHelper
 import app.mitra.matel.network.GrpcService
+import kotlinx.coroutines.flow.collect
 
 @Composable
 @Preview
 fun App() {
     MitraMatelTheme {
         val context = LocalContext.current
-        val sessionManager = remember { SessionManager(context) }
+    val sessionManager = remember { SessionManager.getInstance(context) }
         val authViewModel = remember { AuthViewModel(context) }
         val grpcService = remember { GrpcService(context) }
         val searchViewModel = remember { SearchViewModel(grpcService) }
@@ -102,6 +103,27 @@ fun App() {
                         // Keep showing loading screen during auto-login
                     }
                     else -> { /* Keep waiting */ }
+                }
+            }
+        }
+
+        // Set up session cleared listener for background logout navigation
+        LaunchedEffect(Unit) {
+            sessionManager.setOnSessionClearedListener {
+                // Navigate to welcome screen when session is cleared from background
+                navController.navigate("welcome") {
+                    popUpTo(0) { inclusive = true }
+                }
+            }
+        }
+        
+        // Observe session state changes for background logout detection
+        LaunchedEffect(sessionManager.sessionState) {
+            sessionManager.sessionState.collect { isLoggedIn ->
+                // If session was cleared in background, navigate to welcome
+                if (!isLoggedIn && startDestination == "dashboard") {
+                    startDestination = "welcome"
+                    isInitializing = false
                 }
             }
         }

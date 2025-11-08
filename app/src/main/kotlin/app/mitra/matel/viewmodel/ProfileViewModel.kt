@@ -28,7 +28,7 @@ sealed class AvatarUploadState {
 class ProfileViewModel(private val context: Context) : ViewModel() {
 
     private val apiService = ApiService(context = context)
-    private val sessionManager = SessionManager(context)
+    private val sessionManager = SessionManager.getInstance(context)
 
     private val _profileState = MutableStateFlow<ProfileState>(ProfileState.Idle)
     val profileState: StateFlow<ProfileState> = _profileState.asStateFlow()

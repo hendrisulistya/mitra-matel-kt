@@ -15,6 +15,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import app.mitra.matel.utils.SessionManager
@@ -23,6 +24,7 @@ import app.mitra.matel.network.models.LoginResponse
 import app.mitra.matel.utils.DeviceUtils
 import io.grpc.StatusException
 import io.grpc.Status
+import android.util.Log
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.android.*
@@ -43,7 +45,7 @@ data class VehicleResult(
 )
 
 class GrpcService(private val context: Context) {
-    private val sessionManager = SessionManager(context)
+    private val sessionManager = SessionManager.getInstance(context)
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val refreshMutex = Mutex()
     private var isRefreshing = false
@@ -274,6 +276,13 @@ class GrpcService(private val context: Context) {
         return try {
             // ✅ OPTIMIZED UNARY METHOD: SearchVehicle (updated to new proto)
             val response = getAuthenticatedStub().searchVehicle(request)
+            
+            // Log gRPC response
+            Log.d("gRPC Service", "Search response: ${response.vehiclesList.size} vehicles found")
+            if (response.vehiclesList.isNotEmpty()) {
+                Log.d("gRPC Service", "First vehicle: ${response.vehiclesList.first().nomorPolisi}")
+            }
+            
             val results = response.vehiclesList.map { vehicle ->
                 VehicleResult(
                     id = vehicle.id,
@@ -289,38 +298,66 @@ class GrpcService(private val context: Context) {
             
             results
         } catch (e: StatusException) {
-            // Handle token expiration specifically
+            // Log gRPC error
+            Log.e("gRPC Service", "StatusException: ${e.status.code} - ${e.status.description}")
+            
+            // Handle authentication errors based on error codes
             if (e.status.code == io.grpc.Status.Code.UNAUTHENTICATED) {
-                val refreshed = refreshTokenIfPossible()
-                if (refreshed) {
-                    // Retry with new token
-                    try {
-                        val retryResponse = getAuthenticatedStub().searchVehicle(request)
-                        val retryResults = retryResponse.vehiclesList.map { vehicle ->
-                            VehicleResult(
-                                id = vehicle.id,
-                                nomorPolisi = vehicle.nomorPolisi,
-                                tipeKendaraan = vehicle.tipeKendaraan,
-                                dataVersion = vehicle.dataVersion,
-                                financeName = vehicle.financeName
-                            )
-                        }
-                        
-                        // Cache the retry results
-                        storeInCache(cacheKey, retryResults)
-                        
-                        retryResults
-                    } catch (retryException: Exception) {
+                // Extract error message and code for categorization
+                val errorMessage = e.status.description ?: ""
+                val errorCode = extractErrorCode(errorMessage)
+                
+                // Log authentication error details
+                Log.w("gRPC Service", "UNAUTHENTICATED error: $errorCode - $errorMessage")
+                
+                // Categorize error based on error codes only (no string matching)
+                when (errorCode) {
+                    // Immediate logout required (Critical Security)
+                    "AUTH_005", "AUTH_006", "AUTH_007", "AUTH_008" -> {
+                        // User not found, device ownership changed, invalid device claim, or device claim required
+                        Log.w("gRPC Service", "Critical auth error - clearing session: $errorCode")
+                        sessionManager.clearSession()
                         emptyList()
                     }
-                } else {
-                    sessionManager.clearSession()
-                    emptyList()
+                    
+                    // Reauthentication required (Regular token issues) - retry refresh 3 times
+                    "AUTH_001", "AUTH_002", "AUTH_003", "AUTH_004" -> {
+                        // Missing metadata or token issues - attempt refresh with retry
+                        Log.d("gRPC Service", "Token refresh required: $errorCode")
+                        handleRegularTokenRefresh(cacheKey, request)
+                    }
+                    
+                    // Default case for other Unauthenticated errors - attempt refresh with retry
+                    else -> {
+                        // Regular token expiration or unknown error - attempt refresh with retry
+                        Log.d("gRPC Service", "Generic auth error - attempting refresh: $errorCode")
+                        handleRegularTokenRefresh(cacheKey, request)
+                    }
+                }
+            } else if (e.status.code == io.grpc.Status.Code.PERMISSION_DENIED) {
+                // Handle authorization failures
+                val errorMessage = e.status.description ?: ""
+                val errorCode = extractErrorCode(errorMessage)
+                
+                Log.w("gRPC Service", "PERMISSION_DENIED error: $errorCode - $errorMessage")
+                
+                when (errorCode) {
+                    "SUB_001", "SUB_002" -> {
+                        // Subscription or tier issues - return empty but don't clear session
+                        Log.w("gRPC Service", "Subscription issue: $errorCode")
+                        emptyList()
+                    }
+                    else -> {
+                        Log.w("gRPC Service", "Unknown permission error: $errorCode")
+                        emptyList()
+                    }
                 }
             } else {
+                Log.w("gRPC Service", "Other gRPC error: ${e.status.code}")
                 emptyList()
             }
         } catch (e: Exception) {
+            Log.e("gRPC Service", "General exception: ${e.message}", e)
             emptyList()
         }
     }
@@ -357,6 +394,93 @@ class GrpcService(private val context: Context) {
     // ✅ CACHE UTILITY: Clear all cached search results
     fun clearSearchCache() {
         searchCache.clear()
+    }
+
+    // Helper method for handling regular token refresh scenarios with retry tracking
+    private suspend fun handleRegularTokenRefresh(cacheKey: String, request: Vehicle.VehicleSearchRequest): List<VehicleResult> {
+        var retryCount = 0
+        val maxRetryAttempts = 3
+        
+        while (retryCount < maxRetryAttempts) {
+            val refreshed = refreshTokenIfPossible()
+            if (refreshed) {
+                // Retry with new token
+                try {
+                    val retryResponse = getAuthenticatedStub().searchVehicle(request)
+                    val retryResults = retryResponse.vehiclesList.map { vehicle ->
+                        VehicleResult(
+                            id = vehicle.id,
+                            nomorPolisi = vehicle.nomorPolisi,
+                            tipeKendaraan = vehicle.tipeKendaraan,
+                            dataVersion = vehicle.dataVersion,
+                            financeName = vehicle.financeName
+                        )
+                    }
+                    
+                    // Cache the retry results
+                    storeInCache(cacheKey, retryResults)
+                    
+                    return retryResults
+                } catch (retryException: Exception) {
+                    // If retry fails after token refresh, increment count and try again
+                    retryCount++
+                    Log.w("gRPC Service", "Token refresh retry failed (attempt $retryCount/$maxRetryAttempts): ${retryException.message}")
+                    
+                    // Wait a bit before next retry
+                    delay(1000)
+                }
+            } else {
+                retryCount++
+                Log.w("gRPC Service", "Token refresh failed (attempt $retryCount/$maxRetryAttempts)")
+                
+                // Wait a bit before next retry
+                delay(1000)
+            }
+        }
+        
+        // All retry attempts failed, clear session
+        Log.w("gRPC Service", "All $maxRetryAttempts token refresh attempts failed - clearing session")
+        sessionManager.clearSession()
+        return emptyList()
+    }
+
+    // Helper method to extract error code from error message
+    private fun extractErrorCode(message: String): String {
+        // Error codes are in format "AUTH_001", "SUB_002", etc.
+        val pattern = Regex("""(AUTH|SUB)_\d{3}""")
+        return pattern.find(message)?.value ?: ""
+    }
+
+    // Helper method for handling vehicle detail token refresh scenarios
+    private suspend fun handleVehicleDetailTokenRefresh(vehicleId: String): Result<VehicleDetail> {
+        val refreshed = refreshTokenIfPossible()
+        if (refreshed) {
+            try {
+                val retryResponse = getAuthenticatedStub().getVehicleDetail(
+                    Vehicle.VehicleDetailRequest.newBuilder().setId(vehicleId).build()
+                )
+                val retryDetail = VehicleDetail(
+                    id = vehicleId,
+                    nomor_kontrak = retryResponse.nomorKontrak,
+                    nama_konsumen = "",
+                    past_due = retryResponse.pastDue,
+                    nomor_polisi = retryResponse.nomorPolisi,
+                    nomor_rangka = retryResponse.nomorRangka,
+                    nomor_mesin = retryResponse.nomorMesin,
+                    tipe_kendaraan = retryResponse.tipeKendaraan,
+                    finance_name = retryResponse.financeName,
+                    cabang = retryResponse.cabang,
+                    tahun_kendaraan = retryResponse.tahunKendaraan,
+                    warna_kendaraan = retryResponse.warnaKendaraan
+                )
+                return Result.success(retryDetail)
+            } catch (retryException: Exception) {
+                return Result.failure(retryException)
+            }
+        } else {
+            sessionManager.clearSession()
+            return Result.failure(Exception("Authentication required"))
+        }
     }
 
     private suspend fun refreshTokenIfPossible(): Boolean {
@@ -452,34 +576,48 @@ class GrpcService(private val context: Context) {
 
             Result.success(detail)
         } catch (e: io.grpc.StatusException) {
+            // Handle authentication errors based on error codes
             if (e.status.code == io.grpc.Status.Code.UNAUTHENTICATED) {
-                val refreshed = refreshTokenIfPossible()
-                if (refreshed) {
-                    try {
-                        val retryResponse = getAuthenticatedStub().getVehicleDetail(
-                            Vehicle.VehicleDetailRequest.newBuilder().setId(vehicleId).build()
-                        )
-                        val retryDetail = VehicleDetail(
-                            id = vehicleId,
-                            nomor_kontrak = retryResponse.nomorKontrak,
-                            nama_konsumen = "",
-                            past_due = retryResponse.pastDue,
-                            nomor_polisi = retryResponse.nomorPolisi,
-                            nomor_rangka = retryResponse.nomorRangka,
-                            nomor_mesin = retryResponse.nomorMesin,
-                            tipe_kendaraan = retryResponse.tipeKendaraan,
-                            finance_name = retryResponse.financeName,
-                            cabang = retryResponse.cabang,
-                            tahun_kendaraan = retryResponse.tahunKendaraan,
-                            warna_kendaraan = retryResponse.warnaKendaraan
-                        )
-                        Result.success(retryDetail)
-                    } catch (retryException: Exception) {
-                        Result.failure(retryException)
+                // Extract error message and code for categorization
+                val errorMessage = e.status.description ?: ""
+                val errorCode = extractErrorCode(errorMessage)
+                
+                // Categorize error based on error codes only (no string matching)
+                when (errorCode) {
+                    // Immediate logout required (Critical Security)
+                    "AUTH_005", "AUTH_006", "AUTH_007", "AUTH_008" -> {
+                        // User not found, device ownership changed, invalid device claim, or device claim required
+                        sessionManager.clearSession()
+                        Result.failure(Exception("Authentication required - please reauthenticate"))
                     }
-                } else {
-                    sessionManager.clearSession()
-                    Result.failure(Exception("Authentication required"))
+                    
+                    // Reauthentication required (Regular token issues)
+                    "AUTH_001", "AUTH_002", "AUTH_003", "AUTH_004" -> {
+                        // Missing metadata or token issues - attempt refresh
+                        handleVehicleDetailTokenRefresh(vehicleId)
+                    }
+                    
+                    // Default case for other Unauthenticated errors - attempt refresh
+                    else -> {
+                        // Regular token expiration or unknown error - attempt refresh
+                        handleVehicleDetailTokenRefresh(vehicleId)
+                    }
+                }
+            } else if (e.status.code == io.grpc.Status.Code.PERMISSION_DENIED) {
+                // Handle authorization failures
+                val errorMessage = e.status.description ?: ""
+                val errorCode = extractErrorCode(errorMessage)
+                
+                when (errorCode) {
+                    "SUB_001" -> {
+                        // Subscription issue
+                        Result.failure(Exception("No active subscription - please renew your subscription"))
+                    }
+                    "SUB_002" -> {
+                        // Tier issue
+                        Result.failure(Exception("System configuration error - please contact support"))
+                    }
+                    else -> Result.failure(e)
                 }
             } else {
                 Result.failure(e)

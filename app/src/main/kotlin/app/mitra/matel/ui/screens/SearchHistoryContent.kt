@@ -25,7 +25,7 @@ fun SearchHistoryContent(
     onVehicleClick: (String) -> Unit = {} // Callback to navigate to vehicle detail
 ) {
     val context = LocalContext.current
-    val sessionManager = remember { SessionManager(context) }
+    val sessionManager = remember { SessionManager.getInstance(context) }
     var vehicleHistory by remember { mutableStateOf<List<VehicleHistoryItem>>(emptyList()) }
     
     // Load history when composable is first created

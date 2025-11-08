@@ -1,0 +1,214 @@
+## All Possible Authentication Response Scenarios
+### 1. Authentication Success Scenarios
+✅ Successful Authentication:
+
+- Premium user access granted
+- Regular user with active subscription access granted
+### 2. Authentication Failure Scenarios (UNAUTHENTICATED - Status Code 16)
+🔐 Token/Authorization Issues:
+
+- AUTH_001 - "No metadata provided" (missing gRPC metadata)
+- AUTH_002 - "No authorization token provided" (missing Authorization header)
+- AUTH_003 - "Invalid token format" (missing "Bearer " prefix)
+- AUTH_004 - "Authentication failed" (token validation failed - expired, invalid signature, etc.)
+👤 User/Device Issues:
+
+- AUTH_005 - "User not found" (email in token doesn't exist in database)
+- AUTH_006 - "Device ownership changed - please reauthenticate" (device mismatch)
+- AUTH_007 - "Invalid device claim" (JWT claims device but user has no device)
+- AUTH_008 - "Device claim required" (user has device but JWT has no device claim)
+### 3. Authorization Failure Scenarios (PERMISSION_DENIED - Status Code 7)
+💳 Subscription/Tier Issues:
+
+- SUB_001 - "No active subscription" (Regular user without active subscription)
+- SUB_002 - "Invalid user tier: {tier}" (unknown/unsupported user tier)
+### 4. Rate Limiting Scenarios (RESOURCE_EXHAUSTED - Status Code 8)
+⏰ Rate Limit Issues:
+
+- "Rate limit exceeded: {limit} requests per {window}. Try again in {retry_after}"
+- "Burst limit exceeded: {limit} requests per {window}. Try again in {retry_after}"
+### 5. Frontend Handling Strategy for Kotlin Android
+```
+class GrpcAuthResponseHandler {
+
+    // Map of error codes to 
+    user-friendly messages and actions
+    private val authErrorMap = mapOf(
+        "AUTH_001" to AuthResponse
+        ("Authentication required", 
+        "Please log in again", AuthAction.
+        RELOGIN),
+        "AUTH_002" to AuthResponse
+        ("Authentication required", 
+        "Please log in again", AuthAction.
+        RELOGIN),
+        "AUTH_003" to AuthResponse
+        ("Invalid token", "Please log in 
+        again", AuthAction.RELOGIN),
+        "AUTH_004" to AuthResponse
+        ("Session expired", "Please log 
+        in again", AuthAction.RELOGIN),
+        "AUTH_005" to AuthResponse
+        ("Account not found", "Contact 
+        support", AuthAction.
+        CONTACT_SUPPORT),
+        "AUTH_006" to AuthResponse
+        ("Device changed", "Please log in 
+        again from this device", 
+        AuthAction.RELOGIN),
+        "AUTH_007" to AuthResponse
+        ("Device issue", "Contact 
+        support", AuthAction.
+        CONTACT_SUPPORT),
+        "AUTH_008" to AuthResponse
+        ("Device required", "Please log 
+        in again", AuthAction.RELOGIN),
+        "SUB_001" to AuthResponse
+        ("Subscription required", 
+        "Upgrade your plan", AuthAction.
+        UPGRADE_PLAN),
+        "SUB_002" to AuthResponse
+        ("Account issue", "Contact 
+        support", AuthAction.
+        CONTACT_SUPPORT)
+    )
+
+    fun handleAuthError(status: Status, 
+    metadata: Metadata? = null): 
+    AuthResponse {
+        return when (status.code) {
+            Status.UNAUTHENTICATED -> 
+            handleUnauthenticated(status)
+            Status.PERMISSION_DENIED -> 
+            handlePermissionDenied(status)
+            Status.RESOURCE_EXHAUSTED -> 
+            handleRateLimit(status, 
+            metadata)
+            else -> AuthResponse("Server 
+            error", "Please try again 
+            later", AuthAction.RETRY)
+        }
+    }
+
+    private fun handleUnauthenticated
+    (status: Status): AuthResponse {
+        // Extract error code from 
+        message if available
+        val message = status.description ?
+        : "Authentication failed"
+        val errorCode = extractErrorCode
+        (message)
+        
+        return authErrorMap[errorCode] ?: 
+            AuthResponse("Authentication 
+            failed", "Please log in 
+            again", AuthAction.RELOGIN)
+    }
+
+    private fun handlePermissionDenied
+    (status: Status): AuthResponse {
+        val message = status.description ?
+        : "Access denied"
+        val errorCode = extractErrorCode
+        (message)
+        
+        return authErrorMap[errorCode] ?: 
+            AuthResponse("Access denied", 
+            "You don't have permission", 
+            AuthAction.CONTACT_SUPPORT)
+    }
+
+    private fun handleRateLimit(status: 
+    Status, metadata: Metadata?): 
+    AuthResponse {
+        val retryAfter = metadata?.get
+        (Metadata.Key.of("retry-after", 
+        Metadata.ASCII_STRING_MARSHALLER))
+        val message = status.description ?
+        : "Too many requests"
+        
+        return AuthResponse(
+            "Rate limit exceeded", 
+            message, 
+            AuthAction.RETRY_AFTER,
+            retryAfter?.toIntOrNull()
+        )
+    }
+
+    private fun extractErrorCode(message: 
+    String): String {
+        // Error codes are in format 
+        "AUTH_001", "SUB_002", etc.
+        val pattern = Regex("""(AUTH|SUB)
+        _\d{3}""")
+        return pattern.find(message)?.
+        value ?: ""
+    }
+}
+
+data class AuthResponse(
+    val title: String,
+    val message: String,
+    val action: AuthAction,
+    val retryAfterSeconds: Int? = null
+)
+
+enum class AuthAction {
+    RELOGIN,           // User needs to 
+    log in again
+    UPGRADE_PLAN,      // User needs to 
+    upgrade subscription
+    CONTACT_SUPPORT,   // User should 
+    contact support
+    RETRY,             // User can retry 
+    the operation
+    RETRY_AFTER        // User should 
+    retry after specified seconds
+}
+
+// Usage example:
+fun handleGrpcError(exception: Exception) 
+{
+    val status = Status.fromThrowable
+    (exception)
+    val handler = GrpcAuthResponseHandler
+    ()
+    val response = handler.handleAuthError
+    (status)
+    
+    when (response.action) {
+        AuthAction.RELOGIN -> 
+        showLoginScreen(response.message)
+        AuthAction.UPGRADE_PLAN -> 
+        showUpgradeDialog(response.
+        message)
+        AuthAction.CONTACT_SUPPORT -> 
+        showSupportContact(response.
+        message)
+        AuthAction.RETRY -> 
+        showRetryButton(response.message)
+        AuthAction.RETRY_AFTER -> 
+        showRetryTimer(response.message, 
+        response.retryAfterSeconds ?: 30)
+    }
+}
+```
+### 6. User Tier-Based Access Rules
+- Premium Users : Full access without subscription checks
+- Regular Users : Requires active subscription ( status = "active" AND end_date > now() )
+- Invalid Tier : Contact support required
+### 7. Device Security Enforcement
+- Device claims in JWT must match user's registered device
+- Prevents token sharing across devices
+- Forces reauthentication on device changes
+### 8. Cache Behavior
+- User data cached for 1 hour (UserCacheTTL)
+- Subscription status cached for 24 hours (SubscriptionCacheTTL)
+- Cache invalidated on device/location changes
+This comprehensive error handling strategy ensures your Android app can:
+
+- Show appropriate user-friendly messages
+- Guide users to correct actions (login, upgrade, contact support)
+- Handle rate limiting with retry timers
+- Maintain device security compliance
+- Provide clear troubleshooting paths for different error scenarios

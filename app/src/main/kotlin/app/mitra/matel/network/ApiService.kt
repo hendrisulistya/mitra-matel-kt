@@ -61,7 +61,7 @@ class ApiService(
     private val client: io.ktor.client.HttpClient = createHttpClient(context)
 ) {
     
-    private val sessionManager = SessionManager(context)
+    private val sessionManager = SessionManager.getInstance(context)
     
     init {
         // Set auth token from SessionManager if available

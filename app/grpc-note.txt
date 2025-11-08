@@ -1,0 +1,53 @@
+## gRPC Error Response Structure
+### 1. Authentication Errors (gRPC Middleware)
+Error Codes:
+
+- AUTH_001 - No metadata provided
+- AUTH_002 - No authorization token provided
+- AUTH_003 - Invalid token format
+- AUTH_004 - Token validation failed
+- AUTH_005 - User not found
+- AUTH_006 - Device mismatch
+- AUTH_007 - Invalid device claim
+- AUTH_008 - Device claim required
+- SUB_001 - No active subscription
+- SUB_002 - Invalid user tier
+gRPC Status Codes:
+
+- UNAUTHENTICATED (16) - For authentication failures
+- PERMISSION_DENIED (7) - For authorization/access failures
+Response Format:
+
+### 2. Rate Limiting Errors
+gRPC Status Code: RESOURCE_EXHAUSTED (8)
+
+Response Format:
+
+Rate Limit Headers (in metadata):
+
+- x-ratelimit-limit - Total requests allowed
+- x-ratelimit-remaining - Remaining requests
+- x-ratelimit-reset - Unix timestamp when limit resets
+- retry-after - Seconds to wait before retrying
+### 3. Vehicle Service Errors
+Common Error Scenarios:
+
+- INVALID_ARGUMENT (3) - Missing required fields
+- NOT_FOUND (5) - Vehicle not found
+- INTERNAL (13) - Database/query failures
+Example Vehicle Service Errors:
+
+### 4. Health Service Responses
+Health Status Values:
+
+- SERVING - All systems operational
+- NOT_SERVING - Database/service unavailable
+- SERVICE_UNKNOWN - Requested service not found
+Health Response Metadata:
+
+### 5. Kotlin Error Handling Example
+### 6. Current Rate Limits
+- General gRPC : 6,000 requests/minute
+- Vehicle Search : 12,000 requests/minute
+- Burst Protection : 20,000 requests/10 seconds
+This error structure provides clean, user-friendly messages while maintaining detailed error codes for debugging. The frontend should handle gRPC status codes and extract metadata headers for rate limiting information.

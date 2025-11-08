@@ -194,7 +194,7 @@ object HttpClientFactory {
             isRefreshing = true
             
             try {
-                val manager = sessionManager ?: context?.let { SessionManager(it) }
+                val manager = sessionManager ?: context?.let { SessionManager.getInstance(it) }
                 if (manager == null) {
                     Log.w("HTTP Client", "No SessionManager available for token refresh")
                     return@withLock false
@@ -266,7 +266,7 @@ object HttpClientFactory {
  * Global HTTP Client Instance
  */
 fun createHttpClient(context: Context): HttpClient {
-    HttpClientFactory.setSessionManager(SessionManager(context))
+    HttpClientFactory.setSessionManager(SessionManager.getInstance(context))
     return HttpClientFactory.create(context)
 }
 
