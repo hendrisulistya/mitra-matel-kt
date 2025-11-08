@@ -2,6 +2,8 @@ package app.mitra.matel.utils
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
@@ -366,8 +368,16 @@ class SessionManager private constructor(private val context: Context) {
             // Update session state observable
             _sessionState.value = false
             
-            // Trigger navigation callback if set
-            onSessionCleared?.invoke()
+            // Trigger navigation callback if set (must run on main thread)
+            onSessionCleared?.let { callback ->
+                if (Looper.myLooper() == Looper.getMainLooper()) {
+                    // Already on main thread
+                    callback()
+                } else {
+                    // Post to main thread handler
+                    Handler(Looper.getMainLooper()).post(callback)
+                }
+            }
             
             Log.d(TAG, "Session cleared successfully - including profile data")
         } catch (e: Exception) {
