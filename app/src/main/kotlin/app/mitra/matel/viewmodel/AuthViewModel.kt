@@ -10,8 +10,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import app.mitra.matel.network.models.DeviceConflictException
-import app.mitra.matel.network.models.DeviceConflictResponse
+import app.mitra.matel.network.models.LoginConflictException
+import app.mitra.matel.network.models.LoginConflictResponse
 import app.mitra.matel.network.models.RegisterResponse
 
 sealed class AuthState {
@@ -19,7 +19,7 @@ sealed class AuthState {
     object Loading : AuthState()
     data class Success(val response: LoginResponse) : AuthState()
     data class Error(val message: String) : AuthState()
-    data class Conflict(val data: DeviceConflictResponse) : AuthState()
+    data class Conflict(val data: LoginConflictResponse) : AuthState()
 }
 
 sealed class RegisterState {
@@ -63,7 +63,7 @@ class AuthViewModel(private val context: Context) : ViewModel() {
                 }
                 _loginState.value = AuthState.Success(response)
             }.onFailure { exception ->
-                if (exception is DeviceConflictException) {
+                if (exception is LoginConflictException) {
                     _loginState.value = AuthState.Conflict(exception.data)
                 } else {
                     _loginState.value = AuthState.Error(
@@ -101,25 +101,7 @@ class AuthViewModel(private val context: Context) : ViewModel() {
         _loginState.value = AuthState.Idle
     }
 
-    fun forceLogin(email: String, password: String, rememberCredentials: Boolean = true, confirmDeviceTransfer: Boolean? = null) {
-        viewModelScope.launch {
-            _loginState.value = AuthState.Loading
 
-            val result = apiService.forceLogin(email, password, confirmDeviceTransfer)
-
-            result.onSuccess { response ->
-                sessionManager.saveToken(response.token)
-                if (rememberCredentials) {
-                    sessionManager.saveCredentials(email, password)
-                }
-                _loginState.value = AuthState.Success(response)
-            }.onFailure { exception ->
-                _loginState.value = AuthState.Error(
-                    exception.message ?: "Force login failed"
-                )
-            }
-        }
-    }
 
     /**
      * Register new user

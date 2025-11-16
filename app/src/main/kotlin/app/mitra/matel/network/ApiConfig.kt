@@ -43,7 +43,6 @@ object ApiConfig {
     // API Endpoints
     object Endpoints {
         const val LOGIN = "/public/auth/user/login"
-        const val FORCE_LOGIN = "/public/auth/user/force-login"
         const val REGISTER = "/public/auth/user/register"
         const val LOGOUT = "/public/auth/user/logout"
         const val PROFILE = "/private/user/app/profile"

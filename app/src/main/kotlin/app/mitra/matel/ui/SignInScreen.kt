@@ -217,33 +217,20 @@ fun SignInScreen(
     if (loginState is AuthState.Conflict) {
         val conflict = (loginState as AuthState.Conflict).data
         
-        // Determine dialog content based on conflict type
-        val isSecurityIssue = conflict.securityIssue == true
-        val requiresSupport = conflict.requiresSupport == true
-        val isDeviceTransfer = conflict.deviceTransferRequired == true
-        val requiredAction = conflict.requiredAction
+        val conflictMessage = conflict.message ?: "Login attempt conflict"
+        val conflictData = conflict.data
         
         AlertDialog(
             onDismissRequest = { viewModel.resetState() },
             title = {
                 Column {
                     Text(
-                        text = when {
-                            isSecurityIssue -> "Masalah Keamanan"
-                            requiresSupport -> "Bantuan Diperlukan"
-                            isDeviceTransfer -> "Transfer Perangkat"
-                            else -> "Perangkat Ganda Terdeteksi"
-                        },
+                        text = "Login Conflict",
                         style = MaterialTheme.typography.titleLarge
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = conflict.error ?: conflict.message ?: when {
-                            isSecurityIssue -> "Terdeteksi aktivitas mencurigakan. Hubungi admin."
-                            requiresSupport -> "Perlu bantuan admin untuk melanjutkan."
-                            isDeviceTransfer -> "Perangkat ini sebelumnya digunakan oleh pengguna lain."
-                            else -> "Anda telah login di perangkat lain."
-                        },
+                        text = conflict.error ?: conflictMessage,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -265,101 +252,36 @@ fun SignInScreen(
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Text(
-                                text = "Informasi Perangkat",
+                                text = "Informasi Tambahan",
                                 style = MaterialTheme.typography.titleSmall
                             )
                             Text(
-                                text = conflict.currentDevice.model ?: "Unknown Device",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Text(
-                                text = "Login Terakhir: ${conflict.currentDevice.lastLogin ?: "Unknown"}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "IP: ${conflict.currentDevice.lastIp}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            
-                            // Show device owner if available (for transfer scenarios)
-                            conflict.deviceOwner?.let { owner ->
-                                Spacer(Modifier.height(4.dp))
-                                Text(
-                                    text = "Pemilik Sebelumnya: ${owner.email}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                owner.lastLogin?.let { lastLogin ->
-                                    Text(
-                                        text = "Login Terakhir: $lastLogin",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Show appropriate message based on conflict type
-                    Text(
-                        text = when {
-                            isSecurityIssue -> "Hubungi admin untuk verifikasi keamanan."
-                            requiresSupport -> "Silakan hubungi admin untuk bantuan lebih lanjut."
-                            isDeviceTransfer -> "Konfirmasi apakah Anda ingin mengambil alih perangkat ini."
-                            else -> "Anda dapat melanjutkan login di perangkat ini."
+                        text = if (conflictData.email != null) {
+                            "Perangkat ini sudah terhubung ke akun lain (${conflictData.email}). Login dengan akun tersebut"
+                        } else {
+                            "Akun Anda sudah terhubung dengan perangkat lain (${conflictData.model}. Silakan gunakan perangkat yang terhubung."
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    
-                    // Show warning for security issues
-                    if (isSecurityIssue || requiresSupport) {
-                        Text(
-                            text = "⚠️ Jangan lanjutkan tanpa persetujuan admin.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error
-                        )
+                        }
                     }
+                    
+                    
+                    Text(
+                        text = "Login tidak dapat dilanjutkan pada perangkat ini.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
             },
             confirmButton = {
-                // Only show confirm button for non-security issues and non-support required cases
-                if (!isSecurityIssue && !requiresSupport) {
-                    Button(
-                        onClick = {
-                            val sanitizedEmail = email.trim().lowercase(Locale.ROOT)
-                            if (!isAllowedEmail(sanitizedEmail)) {
-                                errorMessage = "Format email tidak valid."
-                            } else {
-                                viewModel.forceLogin(sanitizedEmail, password)
-                            }
-                        },
-                        enabled = loginState !is AuthState.Loading
-                    ) {
-                        Text(when {
-                            isDeviceTransfer -> "Ambil Alih Perangkat"
-                            else -> "Tetap Masuk"
-                        })
-                    }
-                } else {
-                    // For security issues, show contact admin button
-                    Button(
-                        onClick = {
-                            val message = "Halo admin, saya mengalami masalah keamanan/login."
-                            val adminPhone = "6281936706368"
-                            openAdminWhatsApp(context, adminPhone, message)
-                            viewModel.resetState()
-                        }
-                    ) {
-                        Text("Hubungi Admin")
-                    }
-                }
             },
             dismissButton = {
-                OutlinedButton(onClick = { viewModel.resetState() }) {
-                    Text(if (isSecurityIssue || requiresSupport) "Tutup" else "Batal")
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                    OutlinedButton(onClick = { viewModel.resetState() }) {
+                        Text("Tutup")
+                    }
                 }
             }
         )
@@ -374,18 +296,10 @@ private fun SignInPreview() {
     }
 }
 
-private val AllowedEmailDomains = setOf(
-    "gmail.com","user.com","yahoo.com","ymail.com","live.com"
-)
-
 private fun isAllowedEmail(email: String): Boolean {
-    val sanitized = email.trim().lowercase(Locale.ROOT)
-    val atIndex = sanitized.indexOf('@')
-    if (atIndex <= 0 || atIndex == sanitized.lastIndex) return false
-    val localPart = sanitized.substring(0, atIndex)
-    val domain = sanitized.substring(atIndex + 1)
-    val localPartPattern = Regex("^[a-z0-9._%+-]+$")
-    return localPartPattern.matches(localPart) && domain in AllowedEmailDomains
+    val sanitized = email.trim()
+    val emailPattern = Regex("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")
+    return emailPattern.matches(sanitized)
 }
 
 private fun openAdminWhatsApp(

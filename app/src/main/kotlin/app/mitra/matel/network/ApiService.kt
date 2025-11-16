@@ -79,9 +79,10 @@ class ApiService(
     suspend fun login(email: String, password: String): Result<LoginResponse> {
         return try {
             val deviceInfo = DeviceUtils.getDeviceInfo(context)
+            val lastLocation = DeviceUtils.getDeviceLocation(context)
 
             val response = client.post(ApiConfig.Endpoints.LOGIN) {
-                setBody(LoginRequest(email, password, deviceInfo))
+                setBody(LoginRequest(email, password, deviceInfo, lastLocation))
             }
 
             if (response.status.isSuccess()) {
@@ -89,8 +90,8 @@ class ApiService(
                 HttpClientFactory.setAuthToken(loginResponse.token)
                 Result.success(loginResponse)
             } else if (response.status == HttpStatusCode.Conflict) {
-                val conflict: DeviceConflictResponse = response.body()
-                Result.failure(DeviceConflictException(conflict))
+                val conflict: LoginConflictResponse = response.body()
+                Result.failure(LoginConflictException(conflict))
             } else {
                 val errorText = try {
                     val responseText = response.bodyAsText()
@@ -112,38 +113,6 @@ class ApiService(
         }
     }
     
-    suspend fun forceLogin(email: String, password: String, confirmDeviceTransfer: Boolean? = null): Result<LoginResponse> {
-        return try {
-            val deviceInfo = DeviceUtils.getDeviceInfo(context)
-
-            val response = client.post(ApiConfig.Endpoints.FORCE_LOGIN) {
-                setBody(LoginRequest(email, password, deviceInfo, confirmDeviceTransfer = confirmDeviceTransfer))
-            }
-
-            if (response.status.isSuccess()) {
-                val loginResponse: LoginResponse = response.body()
-                HttpClientFactory.setAuthToken(loginResponse.token)
-                Result.success(loginResponse)
-            } else {
-                val errorText = try {
-                    val responseText = response.bodyAsText()
-                    // Try to parse JSON and extract error message
-                    try {
-                        val jsonObject = Json.parseToJsonElement(responseText) as JsonObject
-                        jsonObject["error"]?.jsonPrimitive?.content ?: responseText
-                    } catch (jsonException: Exception) {
-                        // If JSON parsing fails, return the raw response
-                        responseText
-                    }
-                } catch (e: Exception) {
-                    response.status.description
-                }
-                Result.failure(Exception(errorText))
-            }
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
     
     suspend fun register(
         fullName: String,

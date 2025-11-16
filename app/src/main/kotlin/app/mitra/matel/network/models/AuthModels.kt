@@ -21,13 +21,28 @@ data class LoginRequest(
     val email: String,
     val password: String,
     val device: DeviceInfo?,
-    @SerialName("last_location") val lastLocation: String? = null,
-    @SerialName("confirm_device_transfer") val confirmDeviceTransfer: Boolean? = null
+    @SerialName("last_location") val lastLocation: String? = null
 )
 
 @Serializable
 data class LoginResponse(
     val token: String
+)
+
+@Serializable
+data class LoginConflictData(
+    @SerialName("device_id") val deviceId: String,
+    val model: String,
+    @SerialName("last_ip") val lastIp: String? = null,
+    @SerialName("last_location") val lastLocation: String? = null,
+    val email: String? = null
+)
+
+@Serializable
+data class LoginConflictResponse(
+    val error: String,
+    val message: String? = null,
+    val data: LoginConflictData
 )
 
 @Serializable
@@ -82,42 +97,6 @@ data class ApiResponse<T>(
     val data: T? = null
 )
 
-@Serializable
-data class DeviceRecord(
-    val id: String,
-    @SerialName("device_id") val deviceId: String,
-    val model: String,
-    @SerialName("last_login") val lastLogin: String,
-    @SerialName("last_ip") val lastIp: String,
-    @SerialName("last_location") val lastLocation: String,
-    @SerialName("created_at") val createdAt: String,
-    @SerialName("deleted_at") val deletedAt: String?
-)
-
-@Serializable
-data class DeviceConflictResponse(
-    @SerialName("current_device") val currentDevice: DeviceRecord,
-    @SerialName("requested_device") val requestedDevice: DeviceRecord,
-    @SerialName("force_login_required") val forceLoginRequired: Boolean? = null,
-    @SerialName("device_transfer_required") val deviceTransferRequired: Boolean? = null,
-    val error: String? = null,
-    val message: String? = null,
-    val warning: String? = null,
-    @SerialName("security_issue") val securityIssue: Boolean? = null,
-    @SerialName("requires_support") val requiresSupport: Boolean? = null,
-    @SerialName("device_owner") val deviceOwner: DeviceOwner? = null,
-    @SerialName("required_action") val requiredAction: String? = null
-) {
-    // Helper property to get force login requirement
-    val shouldForceLogin: Boolean
-        get() = forceLoginRequired ?: false
-}
-
-@Serializable
-data class DeviceOwner(
-    val email: String,
-    @SerialName("last_login") val lastLogin: String? = null
-)
 
 @Serializable
 data class AddVehicleRequest(
@@ -210,6 +189,6 @@ data class PaymentHistoryItem(
 
 typealias PaymentHistoryResponse = List<PaymentHistoryItem>
 
-class DeviceConflictException(
-    val data: DeviceConflictResponse
-) : Exception(data.message ?: "Device conflict detected")
+class LoginConflictException(
+    val data: LoginConflictResponse
+) : Exception(data.message ?: data.error ?: "Login conflict detected")

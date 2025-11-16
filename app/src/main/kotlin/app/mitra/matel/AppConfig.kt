@@ -1,5 +1,7 @@
 package app.mitra.matel
 
+import app.mitra.matel.BuildConfig
+
 /**
  * Centralized Application Configuration
  * 
@@ -14,8 +16,11 @@ object AppConfig {
      * Set to:
      * - false: Development mode (localhost APIs, debug features enabled)
      * - true:  Production mode (production APIs, optimized for release)
+     * 
+     * This value is automatically set by the build system based on build type
      */
-    const val IS_PRODUCTION = false
+    val IS_PRODUCTION: Boolean
+        get() = BuildConfig.IS_PRODUCTION
     
     /**
      * App Version Information
@@ -25,16 +30,14 @@ object AppConfig {
     /**
      * Debug Features
      */
-    const val ENABLE_DEBUG_FEATURES = !IS_PRODUCTION
-    const val ENABLE_NETWORK_LOGGING = !IS_PRODUCTION
+    val ENABLE_DEBUG_FEATURES: Boolean
+        get() = !BuildConfig.IS_PRODUCTION
+    val ENABLE_NETWORK_LOGGING: Boolean
+        get() = !BuildConfig.IS_PRODUCTION
     
     /**
      * Get current environment name for display
      */
-    fun getEnvironmentName(): String {
-        return if (IS_PRODUCTION) "Production" else "Development"
-    }
-    fun getAppVersion(): String {
-        return "0.9.300 (Build ${BuildConfig.BUILD_NUMBER})"+if (IS_PRODUCTION) "-prod" else "-debug"
-    }
+    fun getEnvironmentName(): String = if (IS_PRODUCTION) "Production" else "Development"
+    fun getAppVersion(): String = "0.9.505 (Build ${BuildConfig.BUILD_NUMBER})"+if (BuildConfig.IS_PRODUCTION) "-prod" else "-debug"
 }
