@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -20,6 +21,7 @@ import app.mitra.matel.network.ApiService
 import app.mitra.matel.network.models.AddVehicleRequest
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InputVehicleContent(
     onNavigateBack: () -> Unit = {}
@@ -154,28 +156,25 @@ fun InputVehicleContent(
                     enabled = !isLoading
                 )
 
-                // Dropdown for isShared using stable API
                 var isSharedMenuExpanded by remember { mutableStateOf(false) }
-                
-                Box {
+
+                ExposedDropdownMenuBox(
+                    expanded = isSharedMenuExpanded,
+                    onExpandedChange = { if (!isLoading) isSharedMenuExpanded = !isSharedMenuExpanded }
+                ) {
                     OutlinedTextField(
                         value = if (isShared) "Publik" else "Private",
                         onValueChange = { },
                         readOnly = true,
                         label = { Text("Jenis Sharing") },
-                        trailingIcon = {
-                            IconButton(onClick = { isSharedMenuExpanded = !isSharedMenuExpanded }) {
-                                Icon(
-                                    imageVector = if (isSharedMenuExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                                    contentDescription = "Dropdown"
-                                )
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = isSharedMenuExpanded) },
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth(),
                         enabled = !isLoading
                     )
-                    
-                    DropdownMenu(
+
+                    ExposedDropdownMenu(
                         expanded = isSharedMenuExpanded,
                         onDismissRequest = { isSharedMenuExpanded = false }
                     ) {
@@ -343,6 +342,30 @@ fun InputVehicleContent(
     }
     
     // Success Dialog
+    if (isLoading) {
+        AlertDialog(
+            onDismissRequest = { },
+            title = {
+                Text(
+                    text = "Menyimpan Data",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    CircularProgressIndicator()
+                    Text(
+                        text = "Mohon tunggu, data sedang diproses...",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            },
+            confirmButton = { }
+        )
+    }
     if (showSuccessDialog) {
         AlertDialog(
             onDismissRequest = { },

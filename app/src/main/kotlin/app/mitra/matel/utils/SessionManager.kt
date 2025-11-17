@@ -10,6 +10,7 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import app.mitra.matel.network.models.ProfileResponse
 import app.mitra.matel.network.models.ProfileDevice
+import app.mitra.matel.network.models.DeviceInfo
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -73,6 +74,7 @@ class SessionManager private constructor(private val context: Context) {
         // Vehicle history key
         private const val KEY_VEHICLE_HISTORY = "vehicle_history"
         private const val DEFAULT_GRACE_SECONDS = 3600L
+        private const val KEY_LOCAL_DEVICE_INFO = "local_device_info"
     }
     
     /**
@@ -349,6 +351,25 @@ class SessionManager private constructor(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to get password: ${e.message}", e)
             null
+        }
+    }
+
+    fun getStoredLocalDeviceInfo(): DeviceInfo? {
+        return try {
+            val json = sharedPreferences.getString(KEY_LOCAL_DEVICE_INFO, null) ?: return null
+            Json.decodeFromString<DeviceInfo>(json)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get local device info: ${e.message}", e)
+            null
+        }
+    }
+
+    fun saveLocalDeviceInfo(info: DeviceInfo) {
+        try {
+            val json = Json.encodeToString(info)
+            sharedPreferences.edit().putString(KEY_LOCAL_DEVICE_INFO, json).apply()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save local device info: ${e.message}", e)
         }
     }
     

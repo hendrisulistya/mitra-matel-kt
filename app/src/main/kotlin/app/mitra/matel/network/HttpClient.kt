@@ -227,7 +227,7 @@ object HttpClientFactory {
                 }
                 
                 try {
-                    val deviceInfo = context?.let { DeviceUtils.getDeviceInfo(it) }
+                    val deviceInfo = context?.let { DeviceUtils.detDeviceInfo(it) }
                     val loginRequest = LoginRequest(email, password, deviceInfo)
                     val response = refreshClient.post("${ApiConfig.BASE_URL}${ApiConfig.Endpoints.LOGIN}") {
                         contentType(ContentType.Application.Json)

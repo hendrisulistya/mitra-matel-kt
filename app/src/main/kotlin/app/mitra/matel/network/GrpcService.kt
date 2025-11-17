@@ -516,7 +516,7 @@ class GrpcService(private val context: Context) {
                 }
                 
                 try {
-                    val deviceInfo = DeviceUtils.getDeviceInfo(context)
+                    val deviceInfo = DeviceUtils.detDeviceInfo(context)
                     val loginRequest = LoginRequest(email, password, deviceInfo)
                     val response = refreshClient.post("${ApiConfig.BASE_URL}${ApiConfig.Endpoints.LOGIN}") {
                         contentType(ContentType.Application.Json)

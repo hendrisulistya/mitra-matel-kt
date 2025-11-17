@@ -78,7 +78,7 @@ class ApiService(
      */
     suspend fun login(email: String, password: String): Result<LoginResponse> {
         return try {
-            val deviceInfo = DeviceUtils.getDeviceInfo(context)
+            val deviceInfo = DeviceUtils.detDeviceInfo(context)
             val lastLocation = DeviceUtils.getDeviceLocation(context)
 
             val response = client.post(ApiConfig.Endpoints.LOGIN) {

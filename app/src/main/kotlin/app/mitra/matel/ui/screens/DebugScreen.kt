@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.sp
 import app.mitra.matel.network.ApiConfig
 import app.mitra.matel.network.NetworkDebugHelper
 import app.mitra.matel.utils.DeviceUtils
+import app.mitra.matel.utils.SessionManager
 import kotlinx.coroutines.launch
 
 @Composable
@@ -70,8 +71,11 @@ fun DebugScreen() {
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                InfoRow("Device ID", DeviceUtils.getDeviceId(context).take(20) + "...")
-                InfoRow("Model", DeviceUtils.getDeviceModel())
+                val sessionManager = SessionManager.getInstance(context)
+                val cachedInfo = sessionManager.getStoredLocalDeviceInfo()
+                val deviceInfo = cachedInfo ?: DeviceUtils.detDeviceInfo(context)
+                InfoRow("Device ID", deviceInfo.deviceId.take(20) + "...")
+                InfoRow("Model", deviceInfo.model)
             }
         }
 

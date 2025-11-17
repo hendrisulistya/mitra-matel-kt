@@ -11,32 +11,12 @@ import app.mitra.matel.network.models.DeviceInfo
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import java.util.*
+import java.security.MessageDigest
 import kotlinx.coroutines.*
+import app.mitra.matel.utils.SessionManager
 
 object DeviceUtils {
     
-    /**
-     * Get unique device ID
-     * Uses Android ID which is unique per app installation
-     */
-    @SuppressLint("HardwareIds")
-    fun getDeviceId(context: Context): String {
-        return try {
-            Settings.Secure.getString(
-                context.contentResolver,
-                Settings.Secure.ANDROID_ID
-            ) ?: generateFallbackDeviceId()
-        } catch (e: Exception) {
-            generateFallbackDeviceId()
-        }
-    }
-    
-    /**
-     * Generate fallback device ID if Android ID is not available
-     */
-    private fun generateFallbackDeviceId(): String {
-        return UUID.randomUUID().toString()
-    }
     
     /**
      * Get device model name
@@ -110,13 +90,30 @@ object DeviceUtils {
     }
     
     /**
-     * Get complete device information
+     * Get deterministic app-specific device info (cached)
      */
-    suspend fun getDeviceInfo(context: Context): DeviceInfo {
-        return DeviceInfo(
-            deviceId = getDeviceId(context),
-            model = getDeviceModel()
-        )
+    fun detDeviceInfo(context: Context): DeviceInfo {
+        val manager = SessionManager.getInstance(context)
+        val cached = manager.getStoredLocalDeviceInfo()
+        if (cached != null) return cached
+        val androidId = try {
+            Settings.Secure.getString(
+                context.contentResolver,
+                Settings.Secure.ANDROID_ID
+            )
+        } catch (e: Exception) { null }
+        val deviceId = androidId ?: generateAppSpecificHexId16()
+        val info = DeviceInfo(deviceId = deviceId, model = getDeviceModel())
+        manager.saveLocalDeviceInfo(info)
+        return info
+    }
+    
+    private fun generateAppSpecificHexId16(): String {
+        val rnd = UUID.randomUUID().toString()
+        val md = MessageDigest.getInstance("SHA-256")
+        val bytes = md.digest(rnd.toByteArray())
+        val hex = bytes.joinToString("") { b -> ((b.toInt() and 0xFF).toString(16)).padStart(2, '0') }
+        return hex.take(16)
     }
     
     /**
