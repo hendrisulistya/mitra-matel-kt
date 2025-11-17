@@ -42,6 +42,10 @@ import app.mitra.matel.viewmodel.SearchViewModel
 import app.mitra.matel.network.NetworkDebugHelper
 import app.mitra.matel.network.GrpcService
 import kotlinx.coroutines.flow.collect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import kotlinx.coroutines.launch
 
 @Composable
 @Preview
@@ -58,6 +62,7 @@ fun app() {
             app.mitra.matel.MainActivity.currentGrpcService = grpcService
         }
         val navController = rememberNavController()
+        val coroutineScope = rememberCoroutineScope()
         
         var isInitializing by remember { mutableStateOf(true) }
         var startDestination by remember { mutableStateOf("welcome") }
@@ -87,22 +92,83 @@ fun app() {
             }
         }
         
-        // Observe auth state changes for auto-login
+        val lifecycleOwner = LocalLifecycleOwner.current
+        DisposableEffect(lifecycleOwner) {
+            val observer = LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) {
+                    if (sessionManager.isLoggedIn()) {
+                        val (email, password) = authViewModel.getSavedCredentials()
+                        if (!email.isNullOrBlank() && !password.isNullOrBlank()) {
+                            when {
+                                sessionManager.isTokenExpired() -> {
+                                    sessionManager.clearSession()
+                                    navController.navigate("welcome") {
+                                        popUpTo(0) { inclusive = true }
+                                    }
+                                }
+                                sessionManager.isInGracePeriod() -> {
+                                    if (NetworkDebugHelper.isNetworkAvailable(context)) {
+                                        authViewModel.login(email, password, rememberCredentials = true)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            lifecycleOwner.lifecycle.addObserver(observer)
+            onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+        }
+        
+        // Observe auth state changes for auto-login and schedule proactive refresh in grace period (exp - 1 hour)
         LaunchedEffect(authViewModel.loginState) {
             authViewModel.loginState.collect { state ->
                 when (state) {
                     is AuthState.Success -> {
                         startDestination = "dashboard"
                         isInitializing = false
+                        val (email, password) = authViewModel.getSavedCredentials()
+                        val timeUntilGrace = sessionManager.getTimeUntilGraceMillis()
+                        if (!email.isNullOrBlank() && !password.isNullOrBlank() && timeUntilGrace != null && sessionManager.shouldScheduleGraceRefresh()) {
+                            if (timeUntilGrace > 0) {
+                                sessionManager.markGraceRefreshScheduled()
+                                coroutineScope.launch {
+                                    kotlinx.coroutines.delay(timeUntilGrace)
+                                    if (sessionManager.isLoggedIn() && sessionManager.isInGracePeriod()) {
+                                        var attempts = 0
+                                        val maxAttempts = 5
+                                        var waitMs = 30_000L
+                                        val expEpoch = sessionManager.getTokenExpiryEpoch()
+                                        val expDeadlineMs = expEpoch?.let { it * 1000 - System.currentTimeMillis() } ?: 0L
+                                        val maxTotalWaitMs = if (expDeadlineMs > 0) minOf(900_000L, expDeadlineMs) else 900_000L
+                                        var elapsedMs = 0L
+                                        while (!NetworkDebugHelper.isNetworkAvailable(context) && attempts < maxAttempts && sessionManager.isInGracePeriod() && elapsedMs < maxTotalWaitMs) {
+                                            kotlinx.coroutines.delay(waitMs)
+                                            attempts++
+                                            elapsedMs += waitMs
+                                            waitMs = (waitMs * 2).coerceAtMost(300_000L)
+                                        }
+                                        if (sessionManager.isTokenExpired()) {
+                                            sessionManager.clearSession()
+                                            navController.navigate("welcome") { popUpTo(0) { inclusive = true } }
+                                        } else if (NetworkDebugHelper.isNetworkAvailable(context) && sessionManager.isInGracePeriod()) {
+                                            authViewModel.login(email, password, rememberCredentials = true)
+                                        }
+                                    }
+                                }
+                            } else {
+                                sessionManager.markGraceRefreshScheduled()
+                                authViewModel.login(email, password, rememberCredentials = true)
+                            }
+                        }
                     }
                     is AuthState.Error, is AuthState.Conflict -> {
                         startDestination = "welcome"
                         isInitializing = false
                     }
                     is AuthState.Loading -> {
-                        // Keep showing loading screen during auto-login
                     }
-                    else -> { /* Keep waiting */ }
+                    else -> { }
                 }
             }
         }

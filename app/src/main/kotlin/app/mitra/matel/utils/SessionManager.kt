@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.util.Base64
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import app.mitra.matel.network.models.ProfileResponse
@@ -14,6 +15,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,6 +41,8 @@ class SessionManager private constructor(private val context: Context) {
         private const val PREFS_NAME = "mitra_matel_session"
         private const val FALLBACK_PREFS_NAME = "mitra_matel_session_fallback"
         private const val KEY_TOKEN = "auth_token"
+        private const val KEY_TOKEN_EXP = "auth_token_exp"
+        private const val KEY_TOKEN_GRACE = "auth_token_grace"
         private const val KEY_EMAIL = "user_email"
         private const val KEY_PASSWORD = "user_password"
         private const val KEY_IS_LOGGED_IN = "is_logged_in"
@@ -67,6 +72,7 @@ class SessionManager private constructor(private val context: Context) {
         
         // Vehicle history key
         private const val KEY_VEHICLE_HISTORY = "vehicle_history"
+        private const val DEFAULT_GRACE_SECONDS = 3600L
     }
     
     /**
@@ -133,9 +139,14 @@ class SessionManager private constructor(private val context: Context) {
     
     // Performance optimization: Cache frequently accessed values
     private var cachedToken: String? = null
+    private var cachedTokenExp: Long? = null
+    private var cachedTokenGrace: Long? = null
+    private var lastScheduledGraceEpoch: Long? = null
     private var cachedLoginState: Boolean? = null
     private var cachedEmail: String? = null
     private var tokenCacheValid = false
+    private var tokenExpCacheValid = false
+    private var tokenGraceCacheValid = false
     private var loginStateCacheValid = false
     private var emailCacheValid = false
     
@@ -162,21 +173,33 @@ class SessionManager private constructor(private val context: Context) {
      */
     fun saveToken(token: String) {
         try {
+            val exp = extractExpFromJwt(token)
+            val graceStart = exp?.let { it - DEFAULT_GRACE_SECONDS }
             sharedPreferences.edit().apply {
                 putString(KEY_TOKEN, token)
                 putBoolean(KEY_IS_LOGGED_IN, true)
+                exp?.let { putLong(KEY_TOKEN_EXP, it) }
+                graceStart?.let { putLong(KEY_TOKEN_GRACE, it) }
                 apply()
             }
-            // Update cache
             cachedToken = token
             cachedLoginState = true
             tokenCacheValid = true
             loginStateCacheValid = true
-            
-            // Update session state observable
+            if (exp != null) {
+                cachedTokenExp = exp
+                tokenExpCacheValid = true
+            } else {
+                tokenExpCacheValid = false
+            }
+            if (graceStart != null) {
+                cachedTokenGrace = graceStart
+                tokenGraceCacheValid = true
+            } else {
+                tokenGraceCacheValid = false
+            }
+            lastScheduledGraceEpoch = null
             _sessionState.value = true
-            
-            Log.d(TAG, "Token saved successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to save token: ${e.message}", e)
         }
@@ -194,6 +217,90 @@ class SessionManager private constructor(private val context: Context) {
             cachedToken
         } catch (e: Exception) {
             Log.e(TAG, "Failed to get token: ${e.message}", e)
+            null
+        }
+    }
+    
+    fun getTokenExpiryEpoch(): Long? {
+        return try {
+            if (!tokenExpCacheValid) {
+                val v = sharedPreferences.getLong(KEY_TOKEN_EXP, -1L)
+                cachedTokenExp = if (v >= 0) v else null
+                tokenExpCacheValid = true
+            }
+            cachedTokenExp
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get token exp: ${e.message}", e)
+            null
+        }
+    }
+    
+    fun getGraceStartEpoch(): Long? {
+        return try {
+            if (!tokenGraceCacheValid) {
+                val v = sharedPreferences.getLong(KEY_TOKEN_GRACE, -1L)
+                cachedTokenGrace = if (v >= 0) v else null
+                tokenGraceCacheValid = true
+            }
+            cachedTokenGrace
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get token grace: ${e.message}", e)
+            null
+        }
+    }
+    
+    fun getTimeUntilExpiryMillis(): Long? {
+        val exp = getTokenExpiryEpoch() ?: return null
+        val nowSec = System.currentTimeMillis() / 1000
+        val remainingSec = exp - nowSec
+        return if (remainingSec > 0) remainingSec * 1000 else 0
+    }
+    
+    fun getTimeUntilGraceMillis(): Long? {
+        val grace = getGraceStartEpoch() ?: return null
+        val nowSec = System.currentTimeMillis() / 1000
+        val remainingSec = grace - nowSec
+        return if (remainingSec > 0) remainingSec * 1000 else 0
+    }
+    
+    fun isTokenExpired(): Boolean {
+        val exp = getTokenExpiryEpoch() ?: return false
+        val nowSec = System.currentTimeMillis() / 1000
+        return nowSec >= exp
+    }
+    
+    fun isInGracePeriod(): Boolean {
+        val grace = getGraceStartEpoch() ?: return false
+        val exp = getTokenExpiryEpoch() ?: return false
+        val nowSec = System.currentTimeMillis() / 1000
+        return nowSec >= grace && nowSec < exp
+    }
+    
+    fun isTokenNearExpiry(thresholdSeconds: Long = 300): Boolean {
+        val exp = getTokenExpiryEpoch() ?: return false
+        val nowSec = System.currentTimeMillis() / 1000
+        return (exp - nowSec) <= thresholdSeconds
+    }
+
+    fun shouldScheduleGraceRefresh(): Boolean {
+        val grace = getGraceStartEpoch() ?: return false
+        return lastScheduledGraceEpoch != grace
+    }
+
+    fun markGraceRefreshScheduled() {
+        lastScheduledGraceEpoch = getGraceStartEpoch()
+    }
+    
+    private fun extractExpFromJwt(token: String): Long? {
+        return try {
+            val parts = token.split('.')
+            if (parts.size < 2) return null
+            val payloadB64 = parts[1]
+            val jsonStr = String(Base64.decode(payloadB64, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP))
+            val element = kotlinx.serialization.json.Json.parseToJsonElement(jsonStr).jsonObject
+            element["exp"]?.jsonPrimitive?.content?.toLongOrNull()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to parse JWT exp: ${e.message}")
             null
         }
     }
@@ -361,7 +468,12 @@ class SessionManager private constructor(private val context: Context) {
             cachedToken = null
             cachedLoginState = false
             cachedProfile = null
+            cachedTokenExp = null
+            cachedTokenGrace = null
+            lastScheduledGraceEpoch = null
             tokenCacheValid = false
+            tokenExpCacheValid = false
+            tokenGraceCacheValid = false
             loginStateCacheValid = false
             profileCacheValid = false
             
@@ -371,10 +483,8 @@ class SessionManager private constructor(private val context: Context) {
             // Trigger navigation callback if set (must run on main thread)
             onSessionCleared?.let { callback ->
                 if (Looper.myLooper() == Looper.getMainLooper()) {
-                    // Already on main thread
                     callback()
                 } else {
-                    // Post to main thread handler
                     Handler(Looper.getMainLooper()).post(callback)
                 }
             }

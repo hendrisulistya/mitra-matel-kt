@@ -1,5 +1,6 @@
 package app.mitra.matel.ui
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -27,6 +28,7 @@ import app.mitra.matel.viewmodel.ProfileViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.mitra.matel.network.GrpcService
 import app.mitra.matel.utils.SessionManager
+import app.mitra.matel.network.NetworkDebugHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,6 +87,15 @@ fun DashboardScreen(
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showAnnouncement by remember { mutableStateOf(!sessionManager.isAnnouncementDismissed()) }
     var showActivationDialog by remember { mutableStateOf(false) }
+
+    var showOfflineGraceBanner by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            showOfflineGraceBanner = sessionManager.isInGracePeriod() &&
+                !NetworkDebugHelper.isNetworkAvailable(context)
+            kotlinx.coroutines.delay(10_000)
+        }
+    }
     
     // Load saved keyboard layout preference
     var keyboardLayout by remember { 
@@ -186,6 +197,34 @@ fun DashboardScreen(
                     titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             )
+
+            AnimatedVisibility(visible = showOfflineGraceBanner) {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "Sedang offline. Token akan diperbarui saat online.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+            }
 
             // Dashboard content - 3 sections (total 100% height)
             Column(
