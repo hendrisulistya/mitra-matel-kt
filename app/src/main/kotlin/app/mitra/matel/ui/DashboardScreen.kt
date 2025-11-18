@@ -140,7 +140,7 @@ fun DashboardScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        modifier = Modifier.windowInsetsPadding(WindowInsets.systemBars)
+        modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing)
     ) { paddingValues ->
         Box(
             modifier = Modifier

@@ -7,7 +7,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.SystemBarStyle
 import androidx.activity.result.contract.ActivityResultContracts
+import android.graphics.Color
+import java.io.File
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.content.ContextCompat
@@ -30,13 +33,30 @@ class MainActivity : ComponentActivity() {
     companion object {
         var currentGrpcService: app.mitra.matel.network.GrpcService? = null
     }
+
+    private fun clearSharedImagesCache() {
+        val dir = File(cacheDir, "images")
+        if (dir.exists()) {
+            dir.listFiles()?.forEach { runCatching { it.delete() } }
+        }
+    }
     
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.auto(
+                lightScrim = Color.TRANSPARENT,
+                darkScrim = Color.TRANSPARENT
+            ),
+            navigationBarStyle = SystemBarStyle.auto(
+                lightScrim = Color.TRANSPARENT,
+                darkScrim = Color.TRANSPARENT
+            )
+        )
         super.onCreate(savedInstanceState)
         
         // Request permissions on startup
         requestPermissions()
+        clearSharedImagesCache()
 
         setContent {
             // Main App Content
@@ -60,23 +80,12 @@ class MainActivity : ComponentActivity() {
     
     private fun requestPermissions() {
         val permissions = mutableListOf<String>().apply {
-            // Storage permissions
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                add(Manifest.permission.READ_MEDIA_IMAGES)
-            } else {
-                add(Manifest.permission.READ_EXTERNAL_STORAGE)
-                add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-            }
-            
             // Location permissions
             add(Manifest.permission.ACCESS_FINE_LOCATION)
             add(Manifest.permission.ACCESS_COARSE_LOCATION)
             
             // Microphone permission for voice search
             add(Manifest.permission.RECORD_AUDIO)
-
-            
-
         }
         
         // Filter out already granted permissions

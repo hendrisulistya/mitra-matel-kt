@@ -149,7 +149,7 @@ fun MicSearchContent(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.systemBars)
+            .windowInsetsPadding(WindowInsets.safeDrawing)
     ) {
         // Top App Bar
         TopAppBar(

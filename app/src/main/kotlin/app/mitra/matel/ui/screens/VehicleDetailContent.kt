@@ -168,7 +168,7 @@ fun VehicleDetailContent(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .windowInsetsPadding(WindowInsets.systemBars)
+            .windowInsetsPadding(WindowInsets.safeDrawing)
     ) {
         // Content
         when {
@@ -950,7 +950,7 @@ private fun shareAsImage(context: android.content.Context, vehicleDetail: Vehicl
         }
 
         // Add compact disclaimer box at bottom with proper text integration
-        val disclaimerText = "Peringatan: Aplikasi ini bukan alat penarikan yang sah, konsultasikan ke pihak terkait"
+        val disclaimerText = "Peringatan: Aplikasi ini bukan alat yang sah untuk eksekusi objek fidusia. Selalu konfirmasi ke pihak terkait sebelum bertindak."
         val maxBoxWidth = width * 0.9f // 90% of screen width
         val boxPadding = 30f // Increased padding for better spacing
         val cornerRadius = 16f // Fixed corner radius
@@ -1061,10 +1061,18 @@ private fun shareAsImage(context: android.content.Context, vehicleDetail: Vehicl
 
         if (whatsappIntents.size == 1) {
             context.startActivity(whatsappIntents[0])
+            kotlinx.coroutines.MainScope().launch {
+                kotlinx.coroutines.delay(60_000)
+                runCatching { file.delete() }
+            }
         } else {
             val chooser = Intent.createChooser(whatsappIntents[0], "Bagikan via WhatsApp")
             chooser.putExtra(Intent.EXTRA_INITIAL_INTENTS, whatsappIntents.drop(1).toTypedArray())
             context.startActivity(chooser)
+            kotlinx.coroutines.MainScope().launch {
+                kotlinx.coroutines.delay(60_000)
+                runCatching { file.delete() }
+            }
         }
     } catch (e: Exception) {
         Toast.makeText(context, "Gagal membuat gambar: ${e.message}", Toast.LENGTH_LONG).show()
@@ -1091,7 +1099,7 @@ private fun shareToWhatsApp(context: android.content.Context, vehicleDetail: Veh
         append("Tahun: ${vehicleDetail.tahun_kendaraan}\n")
         append("Warna: ${vehicleDetail.warna_kendaraan}\n")
         append("\n")
-        append("*Peringatan: Aplikasi ini hanya sebagai alat bantu. Konsultasikan terlebih dahulu ke pihak terkait.*")
+        append("*Peringatan: Aplikasi ini bukan alat yang sah untuk eksekusi objek fidusia. Selalu konfirmasi ke pihak terkait sebelum bertindak.*")
     }
 
     try {

@@ -239,26 +239,20 @@ private fun AvatarImage(
 ) {
     val context = LocalContext.current
     
-    // File picker launcher
-    val filePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         uri?.let {
             try {
                 val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
                 inputStream?.let { stream ->
                     val bytes = stream.readBytes()
-                    
-                    // Determine MIME type based on the actual image content
                     val mimeType = context.contentResolver.getType(uri) ?: "image/png"
-                    
-                    // Create data URL with correct MIME type
                     val base64String = "data:$mimeType;base64," + Base64.encodeToString(bytes, Base64.DEFAULT)
                     onAvatarClick(base64String)
                     stream.close()
                 }
             } catch (e: Exception) {
-                // Handle error - could show a toast or snackbar
             }
         }
     }
@@ -278,8 +272,12 @@ private fun AvatarImage(
     }
     
     Box(
-        modifier = modifier.clickable { 
-            filePickerLauncher.launch("image/*")
+        modifier = modifier.clickable {
+            photoPickerLauncher.launch(
+                androidx.activity.result.PickVisualMediaRequest(
+                    ActivityResultContracts.PickVisualMedia.ImageOnly
+                )
+            )
         },
         contentAlignment = Alignment.Center
     ) {
