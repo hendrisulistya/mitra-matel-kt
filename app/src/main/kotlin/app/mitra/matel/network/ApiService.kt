@@ -559,6 +559,40 @@ class ApiService(
             Result.failure(e)
         }
     }
+    suspend fun getAnnouncement(): Result<app.mitra.matel.network.models.AnnouncementLatestResponse> {
+        return try {
+            val response = client.get(ApiConfig.Endpoints.GET_ANNOUNCEMENT)
+            if (response.status.isSuccess()) {
+                try {
+                    val direct = response.body<app.mitra.matel.network.models.AnnouncementLatestResponse>()
+                    Result.success(direct)
+                } catch (e: Exception) {
+                    try {
+                        val raw = response.bodyAsText()
+                        val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true }
+                        try {
+                            val bundle = json.decodeFromString(app.mitra.matel.network.models.AnnouncementLatestResponse.serializer(), raw)
+                            Result.success(bundle)
+                        } catch (bundleEx: Exception) {
+                            val ann = json.decodeFromString(app.mitra.matel.network.models.AnnouncementResponse.serializer(), raw)
+                            val mapped = when (ann.type) {
+                                "PROMO" -> app.mitra.matel.network.models.AnnouncementLatestResponse(promo = ann)
+                                "POLICY" -> app.mitra.matel.network.models.AnnouncementLatestResponse(policy = ann)
+                                else -> app.mitra.matel.network.models.AnnouncementLatestResponse(update = ann)
+                            }
+                            Result.success(mapped)
+                        }
+                    } catch (parseEx: Exception) {
+                        Result.failure(parseEx)
+                    }
+                }
+            } else {
+                Result.failure(Exception("Failed: ${response.status.description}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
 
 // Note: ApiService requires Context, so create instance where Context is available

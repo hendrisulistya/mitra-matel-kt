@@ -66,7 +66,7 @@ class SessionManager private constructor(private val context: Context) {
         private const val KEY_DEVICE_LAST_LOGIN = "device_last_login"
         
         // Announcement dismissal key
-        private const val KEY_ANNOUNCEMENT_DISMISSED = "announcement_dismissed"
+        private const val KEY_DISMISSED_ANNOUNCEMENT_IDS = "dismissed_announcement_ids"
         
         // Keyboard layout preference key
         private const val KEY_KEYBOARD_LAYOUT = "keyboard_layout"
@@ -480,7 +480,7 @@ class SessionManager private constructor(private val context: Context) {
                 remove(KEY_DEVICE_UUID)
                 remove(KEY_DEVICE_MODEL)
                 remove(KEY_DEVICE_LAST_LOGIN)
-                remove(KEY_ANNOUNCEMENT_DISMISSED)
+                remove(KEY_DISMISSED_ANNOUNCEMENT_IDS)
                 remove(KEY_KEYBOARD_LAYOUT)
                 remove(KEY_VEHICLE_HISTORY)
                 apply()
@@ -691,29 +691,40 @@ class SessionManager private constructor(private val context: Context) {
         }
     }
     
-    /**
-     * Set announcement dismissal state
-     */
-    fun setAnnouncementDismissed(dismissed: Boolean) {
+
+    
+
+
+
+
+    fun addDismissedAnnouncementId(id: Int) {
         try {
-            sharedPreferences.edit()
-                .putBoolean(KEY_ANNOUNCEMENT_DISMISSED, dismissed)
-                .apply()
-            Log.d(TAG, "Announcement dismissal state saved: $dismissed")
+            val existingJson = sharedPreferences.getString(KEY_DISMISSED_ANNOUNCEMENT_IDS, null)
+            val existing: MutableSet<Int> = if (existingJson.isNullOrBlank()) {
+                mutableSetOf()
+            } else {
+                try {
+                    kotlinx.serialization.json.Json.decodeFromString<List<Int>>(existingJson).toMutableSet()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to parse dismissed ids list: ${e.message}")
+                    mutableSetOf()
+                }
+            }
+            existing.add(id)
+            val newJson = kotlinx.serialization.json.Json.encodeToString(existing.toList())
+            sharedPreferences.edit().putString(KEY_DISMISSED_ANNOUNCEMENT_IDS, newJson).apply()
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to save announcement dismissal state: ${e.message}", e)
+            Log.e(TAG, "Failed to add dismissed announcement id: ${e.message}", e)
         }
     }
-    
-    /**
-     * Check if announcement has been dismissed
-     */
-    fun isAnnouncementDismissed(): Boolean {
+
+    fun getDismissedAnnouncementIds(): Set<Int> {
         return try {
-            sharedPreferences.getBoolean(KEY_ANNOUNCEMENT_DISMISSED, false)
+            val json = sharedPreferences.getString(KEY_DISMISSED_ANNOUNCEMENT_IDS, null) ?: return emptySet()
+            kotlinx.serialization.json.Json.decodeFromString<List<Int>>(json).toSet()
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to get announcement dismissal state: ${e.message}", e)
-            false
+            Log.e(TAG, "Failed to get dismissed announcement ids: ${e.message}", e)
+            emptySet()
         }
     }
     

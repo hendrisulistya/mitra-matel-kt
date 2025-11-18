@@ -6,6 +6,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -85,7 +87,7 @@ fun DashboardScreen(
     var selectedMenuItem by remember { mutableStateOf<String?>(initialSelectedMenuItem) }
     var isSidebarVisible by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
-    var showAnnouncement by remember { mutableStateOf(!sessionManager.isAnnouncementDismissed()) }
+    var showAnnouncement by remember { mutableStateOf(true) }
     var showActivationDialog by remember { mutableStateOf(false) }
 
     var showOfflineGraceBanner by remember { mutableStateOf(false) }
@@ -423,7 +425,6 @@ fun DashboardScreen(
             AnnouncementDialog(
                 onDismiss = { 
                     showAnnouncement = false
-                    sessionManager.setAnnouncementDismissed(true)
                 }
             )
         }
@@ -446,62 +447,135 @@ fun DashboardScreen(
 fun AnnouncementDialog(
     onDismiss: () -> Unit
 ) {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            dismissOnBackPress = true,
-            dismissOnClickOutside = true
-        )
-    ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            shape = MaterialTheme.shapes.large,
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // Title
-                Text(
-                    text = "Pengumuman",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+    val context = LocalContext.current
+    val viewModel = remember { app.mitra.matel.viewmodel.AnnouncementViewModel(context) }
+    val state by viewModel.state.collectAsState()
+    val scrollState = androidx.compose.foundation.rememberScrollState()
+    val cfg = androidx.compose.ui.platform.LocalConfiguration.current
+    val titleHeight = cfg.screenHeightDp.dp * 0.1f
+    val footerHeight = cfg.screenHeightDp.dp * 0.1f
+
+    LaunchedEffect(Unit) { viewModel.fetchAnnouncement() }
+
+    when (state) {
+        is app.mitra.matel.viewmodel.AnnouncementState.Success -> {
+            Dialog(
+                onDismissRequest = onDismiss,
+                properties = DialogProperties(
+                    dismissOnBackPress = true,
+                    dismissOnClickOutside = true
                 )
-                
-                
-                // Additional info (optional)
+            ) {
                 Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = cfg.screenHeightDp.dp * 0.8f)
+                        .padding(16.dp),
+                    shape = MaterialTheme.shapes.large,
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "DATA UPDATE NOVEMBER TELAH DITAMBAHAKAN",
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(12.dp),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        containerColor = MaterialTheme.colorScheme.surface
                     )
-                }
-                
-                // Action Button
-                Button(
-                    onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("OK")
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.Start,
+                        verticalArrangement = Arrangement.Top
+                    ) {
+                        val s = state as app.mitra.matel.viewmodel.AnnouncementState.Success
+                        val a = s.items[s.index]
+                        val sm = remember { app.mitra.matel.utils.SessionManager.getInstance(context) }
+                        LaunchedEffect(a.id) {
+                            var current = (viewModel.state.value as? app.mitra.matel.viewmodel.AnnouncementState.Success)
+                            while (current != null) {
+                                val curItem = current.items[current.index]
+                                val dismissedIds = sm.getDismissedAnnouncementIds()
+                                if (dismissedIds.contains(curItem.id)) {
+                                    if (current.index + 1 < current.items.size) {
+                                        viewModel.next()
+                                        current = (viewModel.state.value as? app.mitra.matel.viewmodel.AnnouncementState.Success)
+                                    } else {
+                                        onDismiss()
+                                        break
+                                    }
+                                } else {
+                                    break
+                                }
+                            }
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(titleHeight)
+                        ) {
+                            Text(
+                                text = a.title,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(MaterialTheme.colorScheme.primaryContainer),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = cfg.screenHeightDp.dp * 0.6f - 48.dp)
+                                .verticalScroll(scrollState)
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                when (a.type) {
+                                    "UPDATE" -> {
+                                        a.content.sections?.forEach { section ->
+                                            Text(text = section.title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                                            section.entries.forEach { entry ->
+                                                Text(text = "• $entry", style = MaterialTheme.typography.bodyMedium)
+                                            }
+                                        }
+                                    }
+                                    "PROMO", "POLICY" -> {
+                                        a.content.paragraphs?.forEach { p ->
+                                            Text(text = p, style = MaterialTheme.typography.bodyMedium)
+                                        }
+                                    }
+                                    else -> {
+                                        Text(text = "Format pengumuman tidak dikenal")
+                                    }
+                                }
+                            }
+                        }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(footerHeight),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Button(
+                                onClick = {
+                                    sm.addDismissedAnnouncementId(a.id)
+                                    val nextState = viewModel.state.value as? app.mitra.matel.viewmodel.AnnouncementState.Success
+                                    if (nextState != null && nextState.index + 1 < nextState.items.size) {
+                                        viewModel.next()
+                                    } else {
+                                        onDismiss()
+                                    }
+                                }
+                            ) {
+                                Text("OK")
+                            }
+                        }
+                    }
                 }
             }
         }
+        else -> {}
     }
 }
 
