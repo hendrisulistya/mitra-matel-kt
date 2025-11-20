@@ -549,10 +549,6 @@ class GrpcService(private val context: Context) {
     // ✅ UNARY METHOD: Get vehicle detail via gRPC VehicleService
     suspend fun getVehicleDetail(vehicleId: String): Result<VehicleDetail> {
         return try {
-            if (!isConnectionReady()) {
-                waitForConnectionReady(timeoutMs = 3000)
-            }
-
             val request = Vehicle.VehicleDetailRequest.newBuilder()
                 .setId(vehicleId)
                 .build()

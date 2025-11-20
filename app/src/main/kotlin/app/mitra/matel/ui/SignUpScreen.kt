@@ -299,11 +299,11 @@ fun SignUpScreen(
                     fullName = it
                     fullNameError = false // Clear error when user starts typing
                 },
-                label = { Text("Nama Lengkap", fontSize = 11.sp) },
+                label = { Text("Nama Lengkap", fontSize = 14.sp) },
                 placeholder = { 
                     Text(
                         if (fullNameError) "* Nama lengkap harus diisi" else "Nama lengkap",
-                        fontSize = 11.sp,
+                        fontSize = 14.sp,
                         color = if (fullNameError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
@@ -328,20 +328,21 @@ fun SignUpScreen(
                 OutlinedTextField(
                     value = email,
                     onValueChange = { 
-                        email = it
+                        val newEmail = it.lowercase()
+                        email = newEmail
                         emailEmptyError = false // Clear empty error when user starts typing
                         emailError = when {
-                            it.isEmpty() -> null
-                            !isValidEmail(it) -> "Format email tidak valid"
-                            !isAllowedEmailDomain(it) -> "Hanya menerima email dari Gmail, Yahoo, Outlook, dan domain umum lainnya"
+                            newEmail.isEmpty() -> null
+                            !isValidEmail(newEmail) -> "Format email tidak valid"
+                            !isAllowedEmailDomain(newEmail) -> "Hanya menerima email dari Gmail, Yahoo, Outlook, dan domain umum lainnya"
                             else -> null
                         }
                     },
-                    label = { Text("Email", fontSize = 11.sp) },
+                    label = { Text("Email", fontSize = 14.sp) },
                     placeholder = { 
                         Text(
                             if (emailEmptyError) "* Email harus diisi" else "contoh@gmail.com",
-                            fontSize = 11.sp,
+                            fontSize = 14.sp,
                             color = if (emailEmptyError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     },
@@ -370,11 +371,11 @@ fun SignUpScreen(
                     phoneNumber = it
                     phoneNumberError = false // Clear error when user starts typing
                 },
-                label = { Text("Nomor Telepon", fontSize = 11.sp) },
+                label = { Text("Nomor Telepon", fontSize = 14.sp) },
                 placeholder = { 
                     Text(
                         if (phoneNumberError) "* Nomor telepon harus diisi" else "08xxxxxxxxxx",
-                        fontSize = 11.sp,
+                        fontSize = 14.sp,
                         color = if (phoneNumberError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
@@ -407,7 +408,7 @@ fun SignUpScreen(
                         } else null
                     }
                 },
-                label = { Text("Kata Sandi", fontSize = 11.sp) },
+                label = { Text("Kata Sandi", fontSize = 14.sp) },
                 placeholder = { 
                     Text(
                         when {
@@ -415,7 +416,7 @@ fun SignUpScreen(
                             passwordError != null -> passwordError!!
                             else -> "Minimal 6 karakter"
                         },
-                        fontSize = 11.sp,
+                        fontSize = 14.sp,
                         color = when {
                             passwordEmptyError || passwordError != null -> MaterialTheme.colorScheme.error
                             else -> MaterialTheme.colorScheme.onSurfaceVariant
@@ -451,7 +452,7 @@ fun SignUpScreen(
                         else -> null
                     }
                 },
-                label = { Text("Konfirmasi Kata Sandi", fontSize = 11.sp) },
+                label = { Text("Konfirmasi Kata Sandi", fontSize = 14.sp) },
                 placeholder = { 
                     Text(
                         when {
@@ -459,7 +460,7 @@ fun SignUpScreen(
                             confirmPasswordError != null -> confirmPasswordError!!
                             else -> "Konfirmasi kata sandi"
                         },
-                        fontSize = 11.sp,
+                        fontSize = 14.sp,
                         color = when {
                             confirmPasswordEmptyError || confirmPasswordError != null -> MaterialTheme.colorScheme.error
                             else -> MaterialTheme.colorScheme.onSurfaceVariant

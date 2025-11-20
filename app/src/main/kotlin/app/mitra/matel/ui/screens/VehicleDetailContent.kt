@@ -82,22 +82,15 @@ fun VehicleDetailContent(
     }
     
     var vehicleDetail by remember { mutableStateOf<VehicleDetail?>(null) }
-    var isLoading by remember { mutableStateOf(true) }
+
     var error by remember { mutableStateOf<String?>(null) }
     
     // Cache token once and reuse - performance optimization
     val authToken = remember { sessionManager.getToken() }
     
-    // Single LaunchedEffect for both auth setup and data fetching - eliminates redundant calls
-    LaunchedEffect(vehicleId, authToken, hasLocationPermission) {
-        // Only proceed if GPS permission is granted
-        if (!hasLocationPermission) {
-            isLoading = false
-            return@LaunchedEffect
-        }
-        
+    // Single LaunchedEffect for auth setup and data fetching - do not block on location permission
+    LaunchedEffect(vehicleId, authToken) {
         try {
-            isLoading = true
             error = null
             
             // Quick auth check and setup
@@ -114,8 +107,6 @@ fun VehicleDetailContent(
             )
         } catch (e: Exception) {
             error = e.message
-        } finally {
-            isLoading = false
         }
     }
     
@@ -138,31 +129,7 @@ fun VehicleDetailContent(
             }
     }
     
-    // Only fetch details if we have auth, permission, and a location
-    LaunchedEffect(vehicleId, authToken, hasLocationPermission, lastKnownLocation) {
-        if (!hasLocationPermission || lastKnownLocation == null) {
-            isLoading = false
-            return@LaunchedEffect
-        }
-        // Fetch details: do NOT gate on location/permission
-        try {
-            isLoading = true
-            error = null
-            if (authToken == null) {
-                error = "Authentication required. Please login again."
-                return@LaunchedEffect
-            }
-            val result = grpcService.getVehicleDetail(vehicleId)
-            result.fold(
-                onSuccess = { vehicleDetail = it },
-                onFailure = { error = it.message ?: "Failed to load vehicle details" }
-            )
-        } catch (e: Exception) {
-            error = e.message
-        } finally {
-            isLoading = false
-        }
-    }
+
     
     Column(
         modifier = modifier
@@ -172,7 +139,6 @@ fun VehicleDetailContent(
     ) {
         // Content
         when {
-            // Gate to GPS request only when triggered after display
             requireLocationGate && !hasLocationPermission -> {
                 LocationPermissionContent(
                     onRequestPermission = {
@@ -186,34 +152,6 @@ fun VehicleDetailContent(
                     onBack = onBack
                 )
             }
-            requireLocationGate && hasLocationPermission && lastKnownLocation == null -> {
-                LocationAccessRequiredContent(
-                    onOpenSettings = {
-                        val intent = android.content.Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS)
-                        context.startActivity(intent)
-                    },
-                    onRetry = {
-                        fusedLocationClient
-                            .lastLocation
-                            .addOnSuccessListener { location: Location? ->
-                                lastKnownLocation = location
-                                locationError = null
-                                if (location != null) {
-                                    // Location available, dismiss gate
-                                    requireLocationGate = false
-                                }
-                            }
-                            .addOnFailureListener { ex ->
-                                lastKnownLocation = null
-                                locationError = ex.message
-                            }
-                    },
-                    onBack = onBack
-                )
-            }
-            isLoading -> {
-                LoadingContent()
-            }
             error != null -> {
                 ErrorContent(
                     error = error!!,
@@ -224,7 +162,6 @@ fun VehicleDetailContent(
                         }
                         kotlinx.coroutines.MainScope().launch {
                             try {
-                                isLoading = true
                                 error = null
                                 val result = grpcService.getVehicleDetail(vehicleId)
                                 result.fold(
@@ -233,8 +170,6 @@ fun VehicleDetailContent(
                                 )
                             } catch (e: Exception) {
                                 error = e.message
-                            } finally {
-                                isLoading = false
                             }
                         }
                     }
@@ -295,23 +230,47 @@ private suspend fun sendUserLocation(
 
 @Composable
 private fun LoadingContent() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+        repeat(6) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(12.dp)
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(24.dp)
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f))
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Optimized CircularProgressIndicator with reduced animation overhead
-            CircularProgressIndicator(
-                modifier = Modifier.size(32.dp), // Smaller size = less rendering overhead
-                strokeWidth = 3.dp // Thinner stroke = less drawing overhead
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(44.dp)
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
             )
-            Text(
-                text = "Loading vehicle details...",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(44.dp)
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f))
             )
         }
     }
@@ -686,22 +645,11 @@ private fun LocationPermissionContent(
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                     textAlign = TextAlign.Center
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                Button(
+                    onClick = onRequestPermission,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    OutlinedButton(
-                        onClick = onBack,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Back")
-                    }
-                    Button(
-                        onClick = onRequestPermission,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Grant Permission")
-                    }
+                    Text("Grant Permission")
                 }
             }
         }
