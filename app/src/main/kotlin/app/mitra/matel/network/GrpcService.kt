@@ -117,8 +117,7 @@ class GrpcService(private val context: Context) {
                 // Force connection attempt to establish channel early
                 channel.getState(true)
                 
-                // Start health monitoring
-                healthService.startMonitoring()
+
             } catch (e: Exception) {
                 // Connection warmup failed, will retry on first request
             }
@@ -141,7 +140,7 @@ class GrpcService(private val context: Context) {
                     
                     // Proactively check token validity with a lightweight health check
                     try {
-                        healthService.checkHealth()
+                        healthService.quickCheck()
                     } catch (e: Exception) {
                         // Try to refresh token proactively in a coroutine
                         scope.launch {

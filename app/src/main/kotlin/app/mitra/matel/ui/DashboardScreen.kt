@@ -267,7 +267,9 @@ fun DashboardScreen(
                     },
                     onClear = { searchViewModel.clearResults() },
                     searchDurationMs = searchUiState.searchDurationMs,
-                    grpcConnectionStatus = searchUiState.grpcConnectionStatus,
+                    healthLatencyMs = searchUiState.healthLatencyMs,
+                    healthStatus = searchUiState.healthStatus,
+                    lastResultError = (searchUiState.error != null),
                     onMicClick = { 
                         handleSearchWithCheck { 
                             onNavigateToMicSearch() 

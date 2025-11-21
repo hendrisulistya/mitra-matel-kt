@@ -23,8 +23,8 @@ import coil.compose.AsyncImage
 import coil.decode.SvgDecoder
 import coil.request.ImageRequest
 import app.mitra.matel.R
-import app.mitra.matel.network.GrpcConnectionStatus
-import io.grpc.ConnectivityState
+
+
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -37,7 +37,9 @@ fun SearchForm(
     onSearch: () -> Unit,
     onClear: () -> Unit,
     searchDurationMs: Long? = null,
-    grpcConnectionStatus: GrpcConnectionStatus? = null,
+    healthLatencyMs: Long? = null,
+    healthStatus: String? = null,
+    lastResultError: Boolean? = null,
     onMicClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -78,80 +80,42 @@ fun SearchForm(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // 1. Status indicator (left)
-                    grpcConnectionStatus?.let { status ->
-                        val (statusText, statusColor) = when {
-                            status.isHealthy && status.state == ConnectivityState.READY -> "READY" to MaterialTheme.colorScheme.primary
-                            status.state == ConnectivityState.CONNECTING -> "CONNECTING" to MaterialTheme.colorScheme.tertiary
-                            status.state == ConnectivityState.TRANSIENT_FAILURE -> "RETRY" to MaterialTheme.colorScheme.error
-                            status.state == ConnectivityState.IDLE -> "IDLE" to MaterialTheme.colorScheme.onSurfaceVariant
-                            else -> "ERROR" to MaterialTheme.colorScheme.error
-                        }
-                        
-                        Box(
-                            modifier = Modifier
-                                .background(
-                                    statusColor.copy(alpha = 0.1f),
-                                    RoundedCornerShape(6.dp)
-                                )
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = statusText,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontSize = 9.sp,
-                                    color = statusColor,
-                                    fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
-                                )
-                                
-                                if (status.latencyMs > 0) {
-                                    val latencyColor = when {
-                                        status.latencyMs < 50 -> MaterialTheme.colorScheme.primary
-                                        status.latencyMs < 150 -> MaterialTheme.colorScheme.tertiary
-                                        status.latencyMs < 300 -> MaterialTheme.colorScheme.secondary
-                                        else -> MaterialTheme.colorScheme.error
-                                    }
-                                    
-                                    Text(
-                                        text = "${status.latencyMs}ms",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontSize = 9.sp,
-                                        color = latencyColor,
-                                        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
-                                    )
-                                }
-                                
-                                if (!status.errorMessage.isNullOrEmpty()) {
-                                    Text(
-                                        text = "ERR",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontSize = 9.sp,
-                                        color = MaterialTheme.colorScheme.error,
-                                        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
-                                    )
-                                }
-                            }
-                        }
-                    } ?: run {
-                        Box(
-                            modifier = Modifier
-                                .background(
-                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f),
-                                    RoundedCornerShape(6.dp)
-                                )
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                    val latencyColor = when {
+                        healthLatencyMs == null -> MaterialTheme.colorScheme.onSurfaceVariant
+                        healthLatencyMs!! <= 20 -> androidx.compose.ui.graphics.Color.Blue
+                        healthLatencyMs in 21..300 -> androidx.compose.ui.graphics.Color(0xFF006400)
+                        healthLatencyMs in 301..400 -> androidx.compose.ui.graphics.Color.Yellow
+                        healthLatencyMs in 401..500 -> androidx.compose.ui.graphics.Color(0xFFFFA500)
+                        else -> androidx.compose.ui.graphics.Color.Red
+                    }
+                    val statusColor = when (healthStatus) {
+                        "SERVING" -> androidx.compose.ui.graphics.Color(0xFF006400)
+                        "NOT_SERVING" -> androidx.compose.ui.graphics.Color.Red
+                        "SERVICE_UNKNOWN", "UNKNOWN" -> MaterialTheme.colorScheme.onSurfaceVariant
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                    Box(
+                        modifier = Modifier
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Text(
-                                text = "OFFLINE",
+                                text = "⛁",
                                 style = MaterialTheme.typography.labelSmall,
-                                fontSize = 9.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+                                fontSize = 14.sp,
+                                color = statusColor
                             )
+                            if (healthLatencyMs != null) {
+                                Text(
+                                    text = "${healthLatencyMs}ms",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontSize = 10.sp,
+                                    color = latencyColor
+                                )
+                            }
                         }
                     }
                     

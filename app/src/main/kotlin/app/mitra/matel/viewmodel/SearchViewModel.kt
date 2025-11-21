@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.mitra.matel.network.GrpcService
 import app.mitra.matel.network.VehicleResult
-import app.mitra.matel.network.GrpcConnectionStatus
+
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,21 +18,29 @@ data class SearchUiState(
     val results: List<VehicleResult> = emptyList(),
     val error: String? = null,
     val searchDurationMs: Long? = null,
-    val grpcConnectionStatus: GrpcConnectionStatus? = null
+    val healthLatencyMs: Long? = null,
+    val healthStatus: String? = null
 )
 
 class SearchViewModel(private val grpcService: GrpcService) : ViewModel() {
-    private val _uiState = MutableStateFlow(SearchUiState())
-    val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
-
     init {
-        // Collect gRPC connection status
         viewModelScope.launch {
-            grpcService.healthService.connectionStatus.collect { status ->
-                _uiState.value = _uiState.value.copy(grpcConnectionStatus = status)
+            while (true) {
+                try {
+                    val result = grpcService.healthService.quickCheck()
+                    _uiState.value = _uiState.value.copy(
+                        healthLatencyMs = result?.second,
+                        healthStatus = result?.first
+                    )
+                } catch (_: Exception) { }
+                delay(5000)
             }
         }
     }
+    private val _uiState = MutableStateFlow(SearchUiState())
+    val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
+
+
 
     private var searchJob: Job? = null
     private var lastInputSource: String = ""
@@ -91,16 +99,7 @@ class SearchViewModel(private val grpcService: GrpcService) : ViewModel() {
         val currentRequestId = ++searchRequestId
         val startTime = System.currentTimeMillis()
         
-        // ✅ CHECK CONNECTION STATUS: Provide user feedback if not ready
-        val connectionStatus = currentState.grpcConnectionStatus
-        if (connectionStatus != null && !connectionStatus.isHealthy) {
-            _uiState.value = currentState.copy(
-                error = "Menghubungkan ke server...",
-                results = emptyList()
-            )
-            // Add small delay to show connecting message
-            delay(100)
-        }
+
         
         try {
             // ✅ UNARY: Now using fast unary gRPC method with connection readiness check
