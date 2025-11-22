@@ -41,11 +41,16 @@ import app.mitra.matel.viewmodel.AuthState
 import app.mitra.matel.viewmodel.SearchViewModel
 import app.mitra.matel.network.NetworkDebugHelper
 import app.mitra.matel.network.GrpcService
+import app.mitra.matel.network.HttpClientFactory
 import kotlinx.coroutines.flow.collect
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import kotlinx.coroutines.launch
+import android.net.ConnectivityManager
+import android.net.NetworkRequest
+import android.net.NetworkCapabilities
+import android.net.Network
 
 @Composable
 @Preview
@@ -101,9 +106,19 @@ fun app() {
                         if (!email.isNullOrBlank() && !password.isNullOrBlank()) {
                             when {
                                 sessionManager.isTokenExpired() -> {
-                                    sessionManager.clearSession()
-                                    navController.navigate("welcome") {
-                                        popUpTo(0) { inclusive = true }
+                                    val (email, password) = authViewModel.getSavedCredentials()
+                                    val hasCreds = !email.isNullOrBlank() && !password.isNullOrBlank()
+                                    if (hasCreds) {
+                                        if (NetworkDebugHelper.isNetworkAvailable(context)) {
+                                            authViewModel.login(email!!, password!!, rememberCredentials = true)
+                                        } else {
+                                            // Stay logged in; attempt re-login when network becomes available
+                                        }
+                                    } else {
+                                        sessionManager.clearSession()
+                                        navController.navigate("welcome") {
+                                            popUpTo(0) { inclusive = true }
+                                        }
                                     }
                                 }
                                 sessionManager.isInGracePeriod() -> {
@@ -118,6 +133,41 @@ fun app() {
             }
             lifecycleOwner.lifecycle.addObserver(observer)
             onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+        }
+        
+        DisposableEffect(Unit) {
+            val cm = context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val callback = object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    val (email, password) = authViewModel.getSavedCredentials()
+                    val hasCreds = !email.isNullOrBlank() && !password.isNullOrBlank()
+                    if (hasCreds) {
+                        if (sessionManager.isTokenExpired()) {
+                            coroutineScope.launch {
+                                var attempts = 0
+                                var success = false
+                                while (attempts < 3 && !success) {
+                                    success = app.mitra.matel.network.HttpClientFactory.refreshTokenWithSavedCredentials(context)
+                                    if (!success) {
+                                        kotlinx.coroutines.delay(2000)
+                                    }
+                                    attempts++
+                                }
+                                if (!success) {
+                                    sessionManager.clearSession()
+                                }
+                            }
+                        } else if (sessionManager.isInGracePeriod()) {
+                            coroutineScope.launch {
+                                app.mitra.matel.network.HttpClientFactory.refreshTokenWithSavedCredentials(context)
+                            }
+                        }
+                    }
+                }
+            }
+            val request = NetworkRequest.Builder().addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET).build()
+            cm.registerNetworkCallback(request, callback)
+            onDispose { cm.unregisterNetworkCallback(callback) }
         }
         
         // Observe auth state changes for auto-login and schedule proactive refresh in grace period (exp - 1 hour)
@@ -149,16 +199,39 @@ fun app() {
                                             waitMs = (waitMs * 2).coerceAtMost(300_000L)
                                         }
                                         if (sessionManager.isTokenExpired()) {
-                                            sessionManager.clearSession()
-                                            navController.navigate("welcome") { popUpTo(0) { inclusive = true } }
+                                            val hasCreds = !email.isNullOrBlank() && !password.isNullOrBlank()
+                                            if (hasCreds) {
+                                                var refreshAttempts = 0
+                                                var refreshSuccess = false
+                                                while (NetworkDebugHelper.isNetworkAvailable(context) && refreshAttempts < 3 && !refreshSuccess) {
+                                                    refreshSuccess = HttpClientFactory.refreshTokenWithSavedCredentials(context)
+                                                    if (!refreshSuccess) {
+                                                        kotlinx.coroutines.delay(2000)
+                                                        refreshAttempts++
+                                                    }
+                                                }
+                                                if (!refreshSuccess) {
+                                                    sessionManager.clearSession()
+                                                    navController.navigate("welcome") { popUpTo(0) { inclusive = true } }
+                                                }
+                                            } else {
+                                                sessionManager.clearSession()
+                                                navController.navigate("welcome") { popUpTo(0) { inclusive = true } }
+                                            }
                                         } else if (NetworkDebugHelper.isNetworkAvailable(context) && sessionManager.isInGracePeriod()) {
-                                            authViewModel.login(email, password, rememberCredentials = true)
+                                            val refreshed = HttpClientFactory.refreshTokenWithSavedCredentials(context)
+                                            if (!refreshed) {
+                                                // keep session; another attempt will occur later or on resume
+                                            }
                                         }
                                     }
                                 }
                             } else {
                                 sessionManager.markGraceRefreshScheduled()
-                                authViewModel.login(email, password, rememberCredentials = true)
+                                val refreshed = HttpClientFactory.refreshTokenWithSavedCredentials(context)
+                                if (!refreshed) {
+                                    // keep session; will retry on resume or when network recovers
+                                }
                             }
                         }
                     }

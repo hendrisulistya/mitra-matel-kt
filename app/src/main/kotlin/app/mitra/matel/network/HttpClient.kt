@@ -8,6 +8,7 @@ import io.ktor.client.engine.android.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.logging.*
+
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -21,6 +22,7 @@ import javax.net.ssl.TrustManagerFactory
 import java.security.KeyStore
 import kotlinx.serialization.json.Json
 import app.mitra.matel.utils.SessionManager
+import app.mitra.matel.network.NetworkDebugHelper
 import app.mitra.matel.network.models.LoginRequest
 import app.mitra.matel.network.models.LoginResponse
 import app.mitra.matel.utils.DeviceUtils
@@ -125,24 +127,18 @@ object HttpClientFactory {
                 socketTimeoutMillis = 15000   // Reduced from 30s to 15s
             }
             
-            // Automatic Token Refresh Interceptor
             HttpResponseValidator {
                 handleResponseExceptionWithRequest { exception, request ->
                     when {
                         exception is ClientRequestException && exception.response.status == HttpStatusCode.Unauthorized -> {
-                            Log.d("HTTP Client", "401 Unauthorized - attempting token refresh")
-                            
-                            // Try to refresh token using saved credentials
                             val refreshed = refreshTokenIfPossible(context)
-                            
-                            if (refreshed) {
-                                Log.d("HTTP Client", "Token refreshed successfully")
-                                // The client will automatically retry with the new token
-                                // due to the updated authToken in defaultRequest
-                            } else {
-                                Log.w("HTTP Client", "Token refresh failed")
-                                // Clear session
-                                sessionManager?.clearSession()
+                            if (!refreshed) {
+                                val manager = sessionManager ?: (context?.let { SessionManager.getInstance(it) })
+                                val hasCreds = manager?.getEmail()?.isNullOrBlank() == false && manager.getPassword()?.isNullOrBlank() == false
+                                val offline = context?.let { !NetworkDebugHelper.isNetworkAvailable(it) } ?: false
+                                if (!hasCreds) {
+                                    manager?.clearSession()
+                                }
                                 throw exception
                             }
                         }
@@ -152,12 +148,7 @@ object HttpClientFactory {
                         ) -> {
                             val statusCode = exception.response.status.value
                             Log.w("HTTP Client", "$statusCode ${exception.response.status.description} - Device conflict detected")
-                            
-                            // Clear session immediately for device conflicts
                             sessionManager?.clearSession()
-                            
-                            // Don't attempt token refresh for device conflicts
-                            // Let the exception propagate to trigger navigation to login
                             throw exception
                         }
                         else -> {
@@ -166,6 +157,7 @@ object HttpClientFactory {
                     }
                 }
             }
+
             
             // Default Request Configuration
             defaultRequest {
@@ -241,11 +233,19 @@ object HttpClientFactory {
                         // Update tokens
                         setAuthToken(newToken)
                         manager.saveToken(newToken)
+                        manager.resetRefreshFailure()
                         
                         Log.d("HTTP Client", "Token refresh successful")
                         return@withLock true
                     } else {
                         Log.w("HTTP Client", "Token refresh failed: ${response.status}")
+                        val isOnline = context?.let { NetworkDebugHelper.isNetworkAvailable(it) } ?: false
+                        if (isOnline) {
+                            val failures = manager.incrementRefreshFailure()
+                            if (failures >= 3) {
+                                manager.clearSession()
+                            }
+                        }
                         return@withLock false
                     }
                 } finally {
@@ -254,11 +254,23 @@ object HttpClientFactory {
                 
             } catch (e: Exception) {
                 Log.e("HTTP Client", "Token refresh error: ${e.message}")
+                val isOnline = context?.let { NetworkDebugHelper.isNetworkAvailable(it) } ?: false
+                val manager = sessionManager ?: context?.let { SessionManager.getInstance(it) }
+                if (isOnline && manager != null) {
+                    val failures = manager.incrementRefreshFailure()
+                    if (failures >= 3) {
+                        manager.clearSession()
+                    }
+                }
                 return@withLock false
             } finally {
                 isRefreshing = false
             }
         }
+    }
+
+    suspend fun refreshTokenWithSavedCredentials(context: Context?): Boolean {
+        return refreshTokenIfPossible(context)
     }
 }
 

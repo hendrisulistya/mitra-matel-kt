@@ -75,6 +75,35 @@ class SessionManager private constructor(private val context: Context) {
         private const val KEY_VEHICLE_HISTORY = "vehicle_history"
         private const val DEFAULT_GRACE_SECONDS = 3600L
         private const val KEY_LOCAL_DEVICE_INFO = "local_device_info"
+        private const val KEY_REFRESH_FAILURES = "refresh_failures"
+    }
+
+    fun incrementRefreshFailure(): Int {
+        return try {
+            val current = getRefreshFailureCount()
+            val next = current + 1
+            sharedPreferences.edit().putInt(KEY_REFRESH_FAILURES, next).apply()
+            refreshFailuresCacheValid = false
+            next
+        } catch (e: Exception) { 1 }
+    }
+
+    fun resetRefreshFailure() {
+        try {
+            sharedPreferences.edit().putInt(KEY_REFRESH_FAILURES, 0).apply()
+            cachedRefreshFailures = 0
+            refreshFailuresCacheValid = true
+        } catch (_: Exception) { }
+    }
+
+    fun getRefreshFailureCount(): Int {
+        return try {
+            if (!refreshFailuresCacheValid) {
+                cachedRefreshFailures = sharedPreferences.getInt(KEY_REFRESH_FAILURES, 0)
+                refreshFailuresCacheValid = true
+            }
+            cachedRefreshFailures
+        } catch (_: Exception) { 0 }
     }
     
     /**
@@ -151,6 +180,8 @@ class SessionManager private constructor(private val context: Context) {
     private var tokenGraceCacheValid = false
     private var loginStateCacheValid = false
     private var emailCacheValid = false
+    private var cachedRefreshFailures: Int = 0
+    private var refreshFailuresCacheValid = false
     
     // Cache for profile data
     private var cachedProfile: ProfileResponse? = null

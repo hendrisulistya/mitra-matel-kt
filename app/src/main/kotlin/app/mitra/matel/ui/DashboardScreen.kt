@@ -91,11 +91,17 @@ fun DashboardScreen(
     var showActivationDialog by remember { mutableStateOf(false) }
 
     var showOfflineGraceBanner by remember { mutableStateOf(false) }
+    var showReauthBanner by remember { mutableStateOf(false) }
+    var showAuthFailedBanner by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         while (true) {
-            showOfflineGraceBanner = sessionManager.isInGracePeriod() &&
-                !NetworkDebugHelper.isNetworkAvailable(context)
-            kotlinx.coroutines.delay(10_000)
+            val offline = !NetworkDebugHelper.isNetworkAvailable(context)
+            val inGraceOrExpired = sessionManager.isInGracePeriod() || sessionManager.isTokenExpired()
+            val failures = sessionManager.getRefreshFailureCount()
+            showOfflineGraceBanner = inGraceOrExpired && offline
+            showReauthBanner = !offline && failures in 1..2
+            showAuthFailedBanner = !offline && failures >= 3
+            kotlinx.coroutines.delay(2000)
         }
     }
     
@@ -227,7 +233,63 @@ fun DashboardScreen(
                     }
                 }
             }
+            
+            AnimatedVisibility(visible = showReauthBanner) {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = "Re-authenticating…",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+            }
 
+            AnimatedVisibility(visible = showAuthFailedBanner) {
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                        Text(
+                            text = "Authentication failed — please sign in again",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                    }
+                }
+            }
+            
             // Dashboard content - 3 sections (total 100% height)
             Column(
                 modifier = Modifier

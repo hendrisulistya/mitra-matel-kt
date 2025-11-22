@@ -23,6 +23,8 @@ import app.mitra.matel.network.models.LoginRequest
 import app.mitra.matel.network.models.LoginResponse
 import app.mitra.matel.utils.DeviceUtils
 import io.grpc.StatusException
+import app.mitra.matel.network.HttpClientFactory
+import app.mitra.matel.network.NetworkDebugHelper
 import io.grpc.Status
 import android.util.Log
 import io.ktor.client.*
@@ -437,9 +439,12 @@ class GrpcService(private val context: Context) {
             }
         }
         
-        // All retry attempts failed, clear session
-        Log.w("gRPC Service", "All $maxRetryAttempts token refresh attempts failed - clearing session")
-        sessionManager.clearSession()
+        // All retry attempts failed
+        Log.w("gRPC Service", "All $maxRetryAttempts token refresh attempts failed")
+        val hasCreds = !sessionManager.getEmail().isNullOrBlank() && !sessionManager.getPassword().isNullOrBlank()
+        if (!hasCreds) {
+            sessionManager.clearSession()
+        }
         return emptyList()
     }
 
@@ -477,72 +482,16 @@ class GrpcService(private val context: Context) {
                 return Result.failure(retryException)
             }
         } else {
-            sessionManager.clearSession()
+            val hasCreds = !sessionManager.getEmail().isNullOrBlank() && !sessionManager.getPassword().isNullOrBlank()
+            if (!hasCreds) {
+                sessionManager.clearSession()
+            }
             return Result.failure(Exception("Authentication required"))
         }
     }
 
     private suspend fun refreshTokenIfPossible(): Boolean {
-        return refreshMutex.withLock {
-            if (isRefreshing) {
-                return@withLock false
-            }
-            
-            isRefreshing = true
-            
-            try {
-                val email = sessionManager.getEmail()
-                val password = sessionManager.getPassword()
-                
-                if (email.isNullOrBlank() || password.isNullOrBlank()) {
-                    return@withLock false
-                }
-                
-                // Create a simple HTTP client for token refresh
-                val refreshClient = HttpClient(Android) {
-                    install(ContentNegotiation) {
-                        json(Json {
-                            prettyPrint = true
-                            isLenient = true
-                            ignoreUnknownKeys = true
-                        })
-                    }
-                    install(HttpTimeout) {
-                        requestTimeoutMillis = 10000
-                        connectTimeoutMillis = 5000
-                        socketTimeoutMillis = 10000
-                    }
-                }
-                
-                try {
-                    val deviceInfo = DeviceUtils.detDeviceInfo(context)
-                    val loginRequest = LoginRequest(email, password, deviceInfo)
-                    val response = refreshClient.post("${ApiConfig.BASE_URL}${ApiConfig.Endpoints.LOGIN}") {
-                        contentType(ContentType.Application.Json)
-                        setBody(loginRequest)
-                    }
-                    
-                    if (response.status.isSuccess()) {
-                        val loginResponse: LoginResponse = response.body()
-                        val newToken = loginResponse.token
-                        
-                        // Update token in session manager
-                        sessionManager.saveToken(newToken)
-                        
-                        return@withLock true
-                    } else {
-                        return@withLock false
-                    }
-                } finally {
-                    refreshClient.close()
-                }
-                
-            } catch (e: Exception) {
-                return@withLock false
-            } finally {
-                isRefreshing = false
-            }
-        }
+        return if (NetworkDebugHelper.isNetworkAvailable(context)) HttpClientFactory.refreshTokenWithSavedCredentials(context) else false
     }
 
     // ✅ UNARY METHOD: Get vehicle detail via gRPC VehicleService
