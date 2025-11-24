@@ -221,7 +221,7 @@ fun SignInScreen(
         val conflictData = conflict.data
         
         AlertDialog(
-            onDismissRequest = { viewModel.resetState() },
+            onDismissRequest = { },
             title = {
                 Column {
                     Text(
@@ -257,9 +257,9 @@ fun SignInScreen(
                             )
                             Text(
                         text = if (conflictData.email != null) {
-                            "Perangkat ini sudah terhubung ke akun lain (${conflictData.email}). Login dengan akun tersebut"
+                            "Akun terhubung dengan perangkat (${conflictData.model}). Perangkat ini terdaftar untuk akun lain (${conflictData.email}). Login hanya dapat dilakukan dari perangkat yang terdaftar."
                         } else {
-                            "Akun Anda sudah terhubung dengan perangkat lain (${conflictData.model}. Silakan gunakan perangkat yang terhubung."
+                            "Akun Anda terhubung dengan perangkat terdaftar (${conflictData.model}). Login hanya dapat dilakukan dari perangkat tersebut."
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant

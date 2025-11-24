@@ -235,8 +235,11 @@ fun app() {
                             }
                         }
                     }
-                    is AuthState.Error, is AuthState.Conflict -> {
+                    is AuthState.Error -> {
                         startDestination = "welcome"
+                        isInitializing = false
+                    }
+                    is AuthState.Conflict -> {
                         isInitializing = false
                     }
                     is AuthState.Loading -> {

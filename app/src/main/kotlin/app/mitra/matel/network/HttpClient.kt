@@ -135,7 +135,7 @@ object HttpClientFactory {
                         HttpStatusCode.Unauthorized -> {
                             refreshTokenIfPossible(context)
                         }
-                        HttpStatusCode.Forbidden, HttpStatusCode.Conflict -> {
+                        HttpStatusCode.Forbidden -> {
                             sessionManager?.clearSession()
                         }
                         else -> { }
@@ -156,11 +156,10 @@ object HttpClientFactory {
                             }
                         }
                         exception is ClientRequestException && (
-                            exception.response.status == HttpStatusCode.Forbidden || 
-                            exception.response.status == HttpStatusCode.Conflict
+                            exception.response.status == HttpStatusCode.Forbidden
                         ) -> {
                             val statusCode = exception.response.status.value
-                            Log.w("HTTP Client", "$statusCode ${exception.response.status.description} - Device conflict detected")
+                            Log.w("HTTP Client", "$statusCode ${exception.response.status.description}")
                             sessionManager?.clearSession()
                             throw exception
                         }
