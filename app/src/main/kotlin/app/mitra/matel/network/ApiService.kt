@@ -174,6 +174,15 @@ class ApiService(
         }
     }
     
+    private suspend fun retryOnUnauthorized(block: suspend () -> io.ktor.client.statement.HttpResponse): io.ktor.client.statement.HttpResponse {
+        val response = block()
+        return if (response.status == io.ktor.http.HttpStatusCode.Unauthorized) {
+            val refreshed = app.mitra.matel.network.HttpClientFactory.refreshTokenWithSavedCredentials(context)
+            if (refreshed) block() else response
+        } else {
+            response
+        }
+    }
     /**
      * User Profile
      */
@@ -187,7 +196,7 @@ class ApiService(
             // Ensure HttpClient has the latest token
             HttpClientFactory.setAuthToken(token)
             
-            val response = client.get(ApiConfig.Endpoints.PROFILE)
+            val response = retryOnUnauthorized { client.get(ApiConfig.Endpoints.PROFILE) }
             
             if (response.status.isSuccess()) {
                 val profileResponse: ProfileResponse = response.body()
@@ -210,7 +219,7 @@ class ApiService(
             // Ensure HttpClient has the latest token
             HttpClientFactory.setAuthToken(token)
 
-            val response = client.get(ApiConfig.Endpoints.MY_VEHICLE_DATA)
+            val response = retryOnUnauthorized { client.get(ApiConfig.Endpoints.MY_VEHICLE_DATA) }
             
             if (response.status.isSuccess()) {
                 val vehicleData: MyVehicleDataResponse = response.body()
@@ -289,9 +298,9 @@ class ApiService(
             HttpClientFactory.setAuthToken(token)
             
             val requestBody = AvatarUploadRequest(avatar = avatarBase64)
-            val response = client.post(ApiConfig.Endpoints.PROFILE_AVATAR) {
+            val response = retryOnUnauthorized { client.post(ApiConfig.Endpoints.PROFILE_AVATAR) {
                 setBody(requestBody)
-            }
+            } }
             
             if (response.status.isSuccess()) {
                 try {
@@ -332,9 +341,9 @@ class ApiService(
      */
     suspend fun searchVehicle(plateNumber: String): Result<ApiResponse<JsonObject>> {
         return try {
-            val response = client.get(ApiConfig.Endpoints.SEARCH_VEHICLE) {
+            val response = retryOnUnauthorized { client.get(ApiConfig.Endpoints.SEARCH_VEHICLE) {
                 parameter("plateNumber", plateNumber)
-            }
+            } }
             
             if (response.status.isSuccess()) {
                 val apiResponse = response.body<ApiResponse<JsonObject>>()
@@ -357,10 +366,10 @@ class ApiService(
      */
     suspend fun addVehicle(request: AddVehicleRequest): Result<AddVehicleResponse> {
         return try {
-            val response = client.post(ApiConfig.Endpoints.ADD_VEHICLE) {
+            val response = retryOnUnauthorized { client.post(ApiConfig.Endpoints.ADD_VEHICLE) {
                 contentType(ContentType.Application.Json)
                 setBody(request)
-            }
+            } }
             
             if (response.status.isSuccess()) {
                 val addVehicleResponse = response.body<AddVehicleResponse>()
@@ -411,7 +420,7 @@ class ApiService(
 
     suspend fun getVehicleCount(): Result<VehicleCountResponse> {
         return try {
-            val response = client.get(ApiConfig.Endpoints.VEHICLES_COUNT)
+            val response = retryOnUnauthorized { client.get(ApiConfig.Endpoints.VEHICLES_COUNT) }
             
             if (response.status.isSuccess()) {
                 val vehicleCountResponse: VehicleCountResponse = response.body()
@@ -435,7 +444,7 @@ class ApiService(
             // Ensure HttpClient has the latest token
             HttpClientFactory.setAuthToken(token)
 
-            val response = client.get(ApiConfig.Endpoints.PAYMENT_HISTORY)
+            val response = retryOnUnauthorized { client.get(ApiConfig.Endpoints.PAYMENT_HISTORY) }
             
             if (response.status.isSuccess()) {
                 val paymentHistoryResponse: PaymentHistoryResponse = response.body()
@@ -463,9 +472,9 @@ class ApiService(
             HttpClientFactory.setAuthToken(token)
             
             val requestBody = DeviceLocationRequest(location = location)
-            val response = client.patch(ApiConfig.Endpoints.DEVICE_LOCATION) {
+            val response = retryOnUnauthorized { client.patch(ApiConfig.Endpoints.DEVICE_LOCATION) {
                 setBody(requestBody)
-            }
+            } }
             
             if (response.status.isSuccess()) {
                 try {
@@ -515,9 +524,9 @@ class ApiService(
             HttpClientFactory.setAuthToken(token)
 
             val requestBody = VehicleAccessRequest(vehicleId = vehicleId, location = location)
-            val response = client.post(ApiConfig.Endpoints.VEHICLE_ACCESS) {
+            val response = retryOnUnauthorized { client.post(ApiConfig.Endpoints.VEHICLE_ACCESS) {
                 setBody(requestBody)
-            }
+            } }
 
             if (response.status == HttpStatusCode.Created) {
                 val body = response.body<VehicleAccessResponse>()

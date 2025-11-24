@@ -28,6 +28,7 @@ import app.mitra.matel.network.models.LoginResponse
 import app.mitra.matel.utils.DeviceUtils
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.CompletableDeferred
 
 /**
  * Ktor HTTP Client Configuration with Automatic Token Refresh
@@ -38,6 +39,7 @@ object HttpClientFactory {
     private var sessionManager: SessionManager? = null
     private val refreshMutex = Mutex()
     private var isRefreshing = false
+    private var refreshDeferred: CompletableDeferred<Boolean>? = null
     
     fun setAuthToken(token: String?) {
         authToken = token
@@ -128,6 +130,17 @@ object HttpClientFactory {
             }
             
             HttpResponseValidator {
+                validateResponse { response ->
+                    when (response.status) {
+                        HttpStatusCode.Unauthorized -> {
+                            refreshTokenIfPossible(context)
+                        }
+                        HttpStatusCode.Forbidden, HttpStatusCode.Conflict -> {
+                            sessionManager?.clearSession()
+                        }
+                        else -> { }
+                    }
+                }
                 handleResponseExceptionWithRequest { exception, request ->
                     when {
                         exception is ClientRequestException && exception.response.status == HttpStatusCode.Unauthorized -> {
@@ -177,10 +190,17 @@ object HttpClientFactory {
      * Returns true if successful, false otherwise
      */
     private suspend fun refreshTokenIfPossible(context: Context?): Boolean {
-        return refreshMutex.withLock {
+        val existing = refreshDeferred
+        if (existing != null && !existing.isCompleted) {
+            return existing.await()
+        }
+        val deferred = CompletableDeferred<Boolean>()
+        refreshDeferred = deferred
+        val result = refreshMutex.withLock {
             if (isRefreshing) {
                 Log.d("HTTP Client", "Token refresh already in progress")
-                return@withLock false
+                val existing = refreshDeferred
+                return@withLock existing?.await() ?: false
             }
             
             isRefreshing = true
@@ -267,8 +287,11 @@ object HttpClientFactory {
                 isRefreshing = false
             }
         }
+        deferred.complete(result)
+        refreshDeferred = null
+        return result
     }
-
+    
     suspend fun refreshTokenWithSavedCredentials(context: Context?): Boolean {
         return refreshTokenIfPossible(context)
     }

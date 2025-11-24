@@ -93,6 +93,7 @@ fun DashboardScreen(
     var showOfflineGraceBanner by remember { mutableStateOf(false) }
     var showReauthBanner by remember { mutableStateOf(false) }
     var showAuthFailedBanner by remember { mutableStateOf(false) }
+    var prevFailures by remember { mutableStateOf(0) }
     LaunchedEffect(Unit) {
         while (true) {
             val offline = !NetworkDebugHelper.isNetworkAvailable(context)
@@ -101,6 +102,13 @@ fun DashboardScreen(
             showOfflineGraceBanner = inGraceOrExpired && offline
             showReauthBanner = !offline && failures in 1..2
             showAuthFailedBanner = !offline && failures >= 3
+            if (!offline && prevFailures > 0 && failures == 0) {
+                snackbarHostState.showSnackbar(
+                    message = "Re-authenticated successfully",
+                    duration = SnackbarDuration.Short
+                )
+            }
+            prevFailures = failures
             kotlinx.coroutines.delay(2000)
         }
     }
