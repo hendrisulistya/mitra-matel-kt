@@ -18,6 +18,12 @@ sealed class ProfileState {
     data class Error(val message: String) : ProfileState()
 }
 
+class ProfileViewModelFactory(private val context: Context) : androidx.lifecycle.ViewModelProvider.Factory {
+    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+        return ProfileViewModel(context) as T
+    }
+}
+
 sealed class AvatarUploadState {
     object Idle : AvatarUploadState()
     object Loading : AvatarUploadState()
@@ -26,6 +32,7 @@ sealed class AvatarUploadState {
 }
 
 class ProfileViewModel(private val context: Context) : ViewModel() {
+
 
     private val apiService = ApiService(context = context)
     private val sessionManager = SessionManager.getInstance(context)

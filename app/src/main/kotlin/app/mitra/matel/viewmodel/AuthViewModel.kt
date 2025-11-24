@@ -22,6 +22,12 @@ sealed class AuthState {
     data class Conflict(val data: LoginConflictResponse) : AuthState()
 }
 
+class AuthViewModelFactory(private val context: Context) : androidx.lifecycle.ViewModelProvider.Factory {
+    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+        return AuthViewModel(context) as T
+    }
+}
+
 sealed class RegisterState {
     object Idle : RegisterState()
     object Loading : RegisterState()
@@ -30,6 +36,7 @@ sealed class RegisterState {
 }
 
 class AuthViewModel(private val context: Context) : ViewModel() {
+
 
     private val apiService = ApiService(context = context)
     private val sessionManager = SessionManager.getInstance(context)

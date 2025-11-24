@@ -3,6 +3,8 @@ package app.mitra.matel.ui
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -35,7 +37,7 @@ fun SignInScreen(
     onNavigateToSignUp: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val viewModel = remember { AuthViewModel(context) }
+    val viewModel: AuthViewModel = androidx.lifecycle.viewmodel.compose.viewModel(factory = app.mitra.matel.viewmodel.AuthViewModelFactory(context))
     val loginState by viewModel.loginState.collectAsState()
 
     var email by remember { mutableStateOf("") }
@@ -65,8 +67,10 @@ fun SignInScreen(
         modifier = Modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.safeDrawing)
+            .imePadding()
+            .verticalScroll(rememberScrollState())
             .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         // Logo

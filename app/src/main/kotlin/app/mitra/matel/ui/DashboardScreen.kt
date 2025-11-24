@@ -46,8 +46,8 @@ fun DashboardScreen(
 ) {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager.getInstance(context) }
-    val authViewModel = remember { AuthViewModel(context) }
-    val profileViewModel = remember { ProfileViewModel(context) }
+    val authViewModel: AuthViewModel = androidx.lifecycle.viewmodel.compose.viewModel(factory = app.mitra.matel.viewmodel.AuthViewModelFactory(context))
+    val profileViewModel: ProfileViewModel = androidx.lifecycle.viewmodel.compose.viewModel(factory = app.mitra.matel.viewmodel.ProfileViewModelFactory(context))
     val apiService = remember { app.mitra.matel.network.ApiService(context) }
     val searchUiState by searchViewModel.uiState.collectAsState()
     val profileState by profileViewModel.profileState.collectAsState()

@@ -68,32 +68,38 @@ fun app() {
         }
         val navController = rememberNavController()
         val coroutineScope = rememberCoroutineScope()
+        var navReady by remember { mutableStateOf(false) }
         
         var isInitializing by remember { mutableStateOf(true) }
         var startDestination by remember { mutableStateOf("welcome") }
         
         // Auto-login logic on app start
         LaunchedEffect(Unit) {
-            if (sessionManager.isLoggedIn()) {
+            val (savedEmail, savedPassword) = authViewModel.getSavedCredentials()
+            val hasCreds = !savedEmail.isNullOrBlank() && !savedPassword.isNullOrBlank()
+            if (sessionManager.isLoggedIn() || hasCreds) {
                 startDestination = "dashboard"
                 isInitializing = false
-            } else {
-                // Check network connectivity before attempting auto-login
-                if (NetworkDebugHelper.isNetworkAvailable(context)) {
-                    // Check for saved credentials and attempt auto-login
-                    val (savedEmail, savedPassword) = authViewModel.getSavedCredentials()
-                    if (!savedEmail.isNullOrBlank() && !savedPassword.isNullOrBlank()) {
-                        // Attempt auto-login with saved credentials
-                        authViewModel.login(savedEmail, savedPassword, rememberCredentials = true)
-                    } else {
-                        startDestination = "welcome"
-                        isInitializing = false
+                if (hasCreds && NetworkDebugHelper.isNetworkAvailable(context)) {
+                    if (sessionManager.isTokenExpired() || sessionManager.isInGracePeriod()) {
+                        var attempts = 0
+                        var success = false
+                        while (attempts < 3 && !success) {
+                            success = HttpClientFactory.refreshTokenWithSavedCredentials(context)
+                            if (!success) {
+                                kotlinx.coroutines.delay(2000)
+                            }
+                            attempts++
+                        }
+                        if (!success) {
+                            sessionManager.clearSession()
+                            navController.navigate("welcome") { popUpTo(0) { inclusive = true } }
+                        }
                     }
-                } else {
-                    // No network - skip auto-login and go to welcome
-                    startDestination = "welcome"
-                    isInitializing = false
                 }
+            } else {
+                startDestination = "welcome"
+                isInitializing = false
             }
         }
         
@@ -101,32 +107,38 @@ fun app() {
         DisposableEffect(lifecycleOwner) {
             val observer = LifecycleEventObserver { _, event ->
                 if (event == Lifecycle.Event.ON_RESUME) {
-                    if (sessionManager.isLoggedIn()) {
-                        val (email, password) = authViewModel.getSavedCredentials()
-                        if (!email.isNullOrBlank() && !password.isNullOrBlank()) {
-                            when {
-                                sessionManager.isTokenExpired() -> {
-                                    val (email, password) = authViewModel.getSavedCredentials()
-                                    val hasCreds = !email.isNullOrBlank() && !password.isNullOrBlank()
-                                    if (hasCreds) {
-                                        if (NetworkDebugHelper.isNetworkAvailable(context)) {
-                                            authViewModel.login(email!!, password!!, rememberCredentials = true)
-                                        } else {
-                                            // Stay logged in; attempt re-login when network becomes available
-                                        }
-                                    } else {
-                                        sessionManager.clearSession()
-                                        navController.navigate("welcome") {
-                                            popUpTo(0) { inclusive = true }
-                                        }
+                    val (email, password) = authViewModel.getSavedCredentials()
+                    val hasCreds = !email.isNullOrBlank() && !password.isNullOrBlank()
+                    if (hasCreds && NetworkDebugHelper.isNetworkAvailable(context)) {
+                        if (sessionManager.isTokenExpired() || sessionManager.isInGracePeriod()) {
+                            coroutineScope.launch {
+                                var attempts = 0
+                                var success = false
+                                while (attempts < 3 && !success) {
+                                    success = HttpClientFactory.refreshTokenWithSavedCredentials(context)
+                                    if (!success) {
+                                        kotlinx.coroutines.delay(2000)
                                     }
+                                    attempts++
                                 }
-                                sessionManager.isInGracePeriod() -> {
-                                    if (NetworkDebugHelper.isNetworkAvailable(context)) {
-                                        authViewModel.login(email, password, rememberCredentials = true)
+                                if (!success) {
+                                    sessionManager.clearSession()
+                                    if (navReady) {
+                                        navController.navigate("welcome") { popUpTo(0) { inclusive = true } }
+                                    } else {
+                                        startDestination = "welcome"
+                                        isInitializing = false
                                     }
                                 }
                             }
+                        }
+                    } else if (sessionManager.isLoggedIn() && sessionManager.isTokenExpired()) {
+                        sessionManager.clearSession()
+                        if (navReady) {
+                            navController.navigate("welcome") { popUpTo(0) { inclusive = true } }
+                        } else {
+                            startDestination = "welcome"
+                            isInitializing = false
                         }
                     }
                 }
@@ -142,12 +154,12 @@ fun app() {
                     val (email, password) = authViewModel.getSavedCredentials()
                     val hasCreds = !email.isNullOrBlank() && !password.isNullOrBlank()
                     if (hasCreds) {
-                        if (sessionManager.isTokenExpired()) {
+                        if (sessionManager.isTokenExpired() || sessionManager.isInGracePeriod()) {
                             coroutineScope.launch {
                                 var attempts = 0
                                 var success = false
                                 while (attempts < 3 && !success) {
-                                    success = app.mitra.matel.network.HttpClientFactory.refreshTokenWithSavedCredentials(context)
+                                    success = HttpClientFactory.refreshTokenWithSavedCredentials(context)
                                     if (!success) {
                                         kotlinx.coroutines.delay(2000)
                                     }
@@ -155,11 +167,8 @@ fun app() {
                                 }
                                 if (!success) {
                                     sessionManager.clearSession()
+                                    navController.navigate("welcome") { popUpTo(0) { inclusive = true } }
                                 }
-                            }
-                        } else if (sessionManager.isInGracePeriod()) {
-                            coroutineScope.launch {
-                                app.mitra.matel.network.HttpClientFactory.refreshTokenWithSavedCredentials(context)
                             }
                         }
                     }
@@ -252,20 +261,27 @@ fun app() {
         // Set up session cleared listener for background logout navigation
         LaunchedEffect(Unit) {
             sessionManager.setOnSessionClearedListener {
-                // Navigate to welcome screen when session is cleared from background
-                navController.navigate("welcome") {
-                    popUpTo(0) { inclusive = true }
+                if (navReady) {
+                    navController.navigate("welcome") {
+                        popUpTo(0) { inclusive = true }
+                    }
+                } else {
+                    startDestination = "welcome"
+                    isInitializing = false
                 }
             }
         }
         
         // Observe session state changes for background logout detection
-        LaunchedEffect(sessionManager.sessionState) {
+        LaunchedEffect(sessionManager.sessionState, navReady) {
             sessionManager.sessionState.collect { isLoggedIn ->
-                // If session was cleared in background, navigate to welcome
-                if (!isLoggedIn && startDestination == "dashboard") {
-                    startDestination = "welcome"
-                    isInitializing = false
+                if (!isLoggedIn) {
+                    if (navReady) {
+                        navController.navigate("welcome") { popUpTo(0) { inclusive = true } }
+                    } else {
+                        startDestination = "welcome"
+                        isInitializing = false
+                    }
                 }
             }
         }
@@ -279,6 +295,7 @@ fun app() {
                 CircularProgressIndicator()
             }
         } else {
+            navReady = true
             NavHost(
                 navController = navController,
                 startDestination = startDestination

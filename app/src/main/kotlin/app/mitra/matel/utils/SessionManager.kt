@@ -129,6 +129,7 @@ class SessionManager private constructor(private val context: Context) {
                 EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             ).also {
+                securePrefsAvailable = true
                 Log.d(TAG, "EncryptedSharedPreferences created successfully")
             }
         } catch (e: Exception) {
@@ -151,6 +152,7 @@ class SessionManager private constructor(private val context: Context) {
                     EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                     EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
                 ).also {
+                    securePrefsAvailable = true
                     Log.d(TAG, "EncryptedSharedPreferences created successfully after retry")
                 }
             } catch (retryException: Exception) {
@@ -165,6 +167,7 @@ class SessionManager private constructor(private val context: Context) {
      */
     private fun createFallbackPreferences(): SharedPreferences {
         Log.w(TAG, "Using fallback regular SharedPreferences (data will not be encrypted)")
+        securePrefsAvailable = false
         return context.getSharedPreferences(FALLBACK_PREFS_NAME, Context.MODE_PRIVATE)
     }
     
@@ -182,6 +185,7 @@ class SessionManager private constructor(private val context: Context) {
     private var emailCacheValid = false
     private var cachedRefreshFailures: Int = 0
     private var refreshFailuresCacheValid = false
+    private var securePrefsAvailable: Boolean = false
     
     // Cache for profile data
     private var cachedProfile: ProfileResponse? = null
@@ -342,13 +346,16 @@ class SessionManager private constructor(private val context: Context) {
      * Save user credentials
      */
     fun saveCredentials(email: String, password: String) {
+        if (!securePrefsAvailable) {
+            Log.w(TAG, "Secure storage unavailable; skipping credential save")
+            return
+        }
         try {
             sharedPreferences.edit().apply {
                 putString(KEY_EMAIL, email)
                 putString(KEY_PASSWORD, password)
                 apply()
             }
-            // Update cache
             cachedEmail = email
             emailCacheValid = true
             Log.d(TAG, "Credentials saved successfully")
