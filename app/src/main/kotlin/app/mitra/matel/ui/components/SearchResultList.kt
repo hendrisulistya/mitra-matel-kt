@@ -4,8 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.ui.res.painterResource
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -21,6 +22,11 @@ import coil.decode.SvgDecoder
 import coil.request.ImageRequest
 import app.mitra.matel.R
 import app.mitra.matel.network.VehicleResult
+import app.mitra.matel.network.NetworkDebugHelper
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 
 @Composable
 fun SearchResultList(
@@ -29,6 +35,18 @@ fun SearchResultList(
     onVehicleClick: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    var isOnline by remember { mutableStateOf(NetworkDebugHelper.isNetworkAvailable(context)) }
+    DisposableEffect(Unit) {
+        val cm = context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) { isOnline = true }
+            override fun onLost(network: Network) { isOnline = false }
+        }
+        val request = NetworkRequest.Builder().addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET).build()
+        cm.registerNetworkCallback(request, callback)
+        onDispose { cm.unregisterNetworkCallback(callback) }
+    }
     Box(
         modifier = modifier.fillMaxSize()
     ) {
@@ -47,57 +65,86 @@ fun SearchResultList(
             alpha = 0.15f
         )
         
-        // Content overlay
-        when {
-            error != null -> {
-                Column(
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            if (!isOnline) {
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp)
-                        .align(Alignment.Center),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .background(MaterialTheme.colorScheme.errorContainer)
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
                 ) {
-                    Text(
-                        text = "Error",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.error
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_offline),
+                        contentDescription = "Offline",
+                        tint = MaterialTheme.colorScheme.onErrorContainer
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = error,
-                        style = MaterialTheme.typography.bodyMedium
+                        text = "Offline Mode, Check your connection",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onErrorContainer
                     )
                 }
             }
-            results.isEmpty() -> {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                        .align(Alignment.Center),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "Data kendaraan tidak ditemukan",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
-            else -> {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    items(results.size) { index ->
-                        VehicleResultCard(
-                            vehicle = results[index],
-                            onClick = { onVehicleClick(results[index].id) }
-                        )
-                        
-                        // Add separator line after each item except the last one
-                        if (index < results.size - 1) {
-                            HorizontalDivider(
-                                thickness = 1.dp,
-                                color = Color.Black.copy(alpha = 0.2f)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f)
+            ) {
+                when {
+                    error != null -> {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                                .align(Alignment.Center),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "Error",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.error
                             )
+                            Text(
+                                text = error,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                    results.isEmpty() -> {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                                .align(Alignment.Center),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "Data kendaraan tidak ditemukan",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            items(results.size) { index ->
+                                VehicleResultCard(
+                                    vehicle = results[index],
+                                    onClick = { onVehicleClick(results[index].id) }
+                                )
+                                if (index < results.size - 1) {
+                                    HorizontalDivider(
+                                        thickness = 1.dp,
+                                        color = Color.Black.copy(alpha = 0.2f)
+                                    )
+                                }
+                            }
                         }
                     }
                 }

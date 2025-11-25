@@ -84,6 +84,7 @@ class SessionManager private constructor(private val context: Context) {
             val next = current + 1
             sharedPreferences.edit().putInt(KEY_REFRESH_FAILURES, next).apply()
             refreshFailuresCacheValid = false
+            _refreshFailuresFlow.value = next
             next
         } catch (e: Exception) { 1 }
     }
@@ -93,6 +94,7 @@ class SessionManager private constructor(private val context: Context) {
             sharedPreferences.edit().putInt(KEY_REFRESH_FAILURES, 0).apply()
             cachedRefreshFailures = 0
             refreshFailuresCacheValid = true
+            _refreshFailuresFlow.value = 0
         } catch (_: Exception) { }
     }
 
@@ -194,6 +196,10 @@ class SessionManager private constructor(private val context: Context) {
     // Session state observable for UI updates
     private val _sessionState = MutableStateFlow(isLoggedIn())
     val sessionState: StateFlow<Boolean> = _sessionState.asStateFlow()
+    
+    // Refresh failure observable to avoid polling in UI
+    private val _refreshFailuresFlow = MutableStateFlow(getRefreshFailureCount())
+    val refreshFailures: StateFlow<Int> = _refreshFailuresFlow.asStateFlow()
     
     // Navigation callback for session clearing events
     private var onSessionCleared: (() -> Unit)? = null

@@ -31,6 +31,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import app.mitra.matel.network.GrpcService
 import app.mitra.matel.utils.SessionManager
 import app.mitra.matel.network.NetworkDebugHelper
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -94,22 +98,41 @@ fun DashboardScreen(
     var showReauthBanner by remember { mutableStateOf(false) }
     var showAuthFailedBanner by remember { mutableStateOf(false) }
     var prevFailures by remember { mutableStateOf(0) }
-    LaunchedEffect(Unit) {
-        while (true) {
-            val offline = !NetworkDebugHelper.isNetworkAvailable(context)
-            val inGraceOrExpired = sessionManager.isInGracePeriod() || sessionManager.isTokenExpired()
-            val failures = sessionManager.getRefreshFailureCount()
-            showOfflineGraceBanner = inGraceOrExpired && offline
-            showReauthBanner = !offline && failures in 1..2
-            showAuthFailedBanner = !offline && failures >= 3
-            if (!offline && prevFailures > 0 && failures == 0) {
-                snackbarHostState.showSnackbar(
-                    message = "Re-authenticated successfully",
-                    duration = SnackbarDuration.Short
-                )
-            }
-            prevFailures = failures
-            kotlinx.coroutines.delay(2000)
+    var isOnline by remember { mutableStateOf(NetworkDebugHelper.isNetworkAvailable(context)) }
+    val failures by sessionManager.refreshFailures.collectAsState()
+    DisposableEffect(Unit) {
+        val cm = context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) { isOnline = true }
+            override fun onLost(network: Network) { isOnline = false }
+        }
+        val request = NetworkRequest.Builder().addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET).build()
+        cm.registerNetworkCallback(request, callback)
+        onDispose { cm.unregisterNetworkCallback(callback) }
+    }
+    LaunchedEffect(isOnline, failures) {
+        val inGraceOrExpired = sessionManager.isInGracePeriod() || sessionManager.isTokenExpired()
+        showOfflineGraceBanner = inGraceOrExpired && !isOnline
+        showReauthBanner = isOnline && failures in 1..2
+        showAuthFailedBanner = isOnline && failures >= 3
+        if (isOnline && prevFailures > 0 && failures == 0) {
+            snackbarHostState.showSnackbar(
+                message = "Re-authenticated successfully",
+                duration = SnackbarDuration.Short
+            )
+        }
+        prevFailures = failures
+    }
+    val graceMs = sessionManager.getTimeUntilGraceMillis()
+    val expiryMs = sessionManager.getTimeUntilExpiryMillis()
+    LaunchedEffect(graceMs, expiryMs, isOnline, failures) {
+        val next = listOfNotNull(graceMs?.takeIf { it > 0 }, expiryMs?.takeIf { it > 0 }).minOrNull()
+        if (next != null) {
+            kotlinx.coroutines.delay(next)
+            val inGraceOrExpiredNow = sessionManager.isInGracePeriod() || sessionManager.isTokenExpired()
+            showOfflineGraceBanner = inGraceOrExpiredNow && !isOnline
+            showReauthBanner = isOnline && failures in 1..2
+            showAuthFailedBanner = isOnline && failures >= 3
         }
     }
     

@@ -19,6 +19,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.painterResource
 import coil.compose.AsyncImage
 import coil.decode.SvgDecoder
 import coil.request.ImageRequest
@@ -102,11 +103,11 @@ fun SearchForm(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Text(
-                                text = "⛁",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontSize = 14.sp,
-                                color = statusColor
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_database),
+                                contentDescription = "Database",
+                                tint = statusColor,
+                                modifier = Modifier.size(12.dp)
                             )
                             if (healthLatencyMs != null) {
                                 Text(

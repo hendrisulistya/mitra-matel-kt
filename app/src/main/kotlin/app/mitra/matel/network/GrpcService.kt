@@ -130,40 +130,7 @@ class GrpcService(private val context: Context) {
      * Proactively warm up the connection and validate token
      * Call this when app resumes to reduce first search latency
      */
-    fun warmUpConnection() {
-        scope.launch {
-            try {
-                // Force channel to connect if idle
-                val currentState = channel.getState(true)
-                
-                // More aggressive connection establishment
-                try {
-                    waitForConnectionReady(timeoutMs = 3000) // 3 second timeout for warmup
-                    
-                    // Proactively check token validity with a lightweight health check
-                    try {
-                        healthService.quickCheck()
-                    } catch (e: Exception) {
-                        // Try to refresh token proactively in a coroutine
-                        scope.launch {
-                            try {
-                                refreshTokenIfPossible()
-                            } catch (refreshError: Exception) {
-                                // Token refresh failed during warmup
-                            }
-                        }
-                    }
-                    
-                } catch (e: Exception) {
-                    // Connection warmup timeout, will retry on first request
-                    // Don't throw - let individual requests handle connection
-                }
-                
-            } catch (e: Exception) {
-                // Connection warmup failed
-            }
-        }
-    }
+
 
     /**
      * Check if connection is ready without waiting
@@ -173,47 +140,6 @@ class GrpcService(private val context: Context) {
         return channel.getState(false) == io.grpc.ConnectivityState.READY
     }
 
-    /**
-     * Wait for connection to be ready before making requests
-     * Prevents hanging when app resumes and connection is not ready
-     */
-    private suspend fun waitForConnectionReady(timeoutMs: Long = 5000) {
-        val startTime = System.currentTimeMillis()
-        var attempts = 0
-        val maxAttempts = 50 // 5 seconds with 100ms intervals
-        
-        while (attempts < maxAttempts) {
-            val currentState = channel.getState(false)
-            
-            when (currentState) {
-                io.grpc.ConnectivityState.READY -> {
-                    return
-                }
-                io.grpc.ConnectivityState.IDLE -> {
-                    channel.getState(true) // Request connection
-                }
-                io.grpc.ConnectivityState.CONNECTING -> {
-                    // Connection in progress, waiting...
-                }
-                io.grpc.ConnectivityState.TRANSIENT_FAILURE -> {
-                    channel.getState(true) // Request reconnection
-                }
-                io.grpc.ConnectivityState.SHUTDOWN -> {
-                    throw IllegalStateException("Connection channel is shutdown")
-                }
-            }
-            
-            kotlinx.coroutines.delay(100) // Wait 100ms between checks
-            attempts++
-            
-            // Check timeout
-            if (System.currentTimeMillis() - startTime > timeoutMs) {
-                throw Exception("Connection timeout: Service not ready after ${timeoutMs}ms")
-            }
-        }
-        
-        throw Exception("Connection failed: Maximum attempts reached")
-    }
 
     // ✅ UNARY METHOD: Fast search with caching, deduplication, and optimized connection
     suspend fun searchVehicle(
@@ -237,10 +163,7 @@ class GrpcService(private val context: Context) {
         // ✅ ASYNC SEARCH: Create deferred for this search request
         val searchDeferred = scope.async {
             try {
-                // ✅ OPTIMIZED CONNECTION: Only wait if not already ready
-                if (!isConnectionReady()) {
-                    waitForConnectionReady(timeoutMs = 3000) // Reduced timeout for faster UX
-                }
+
                 
                 val request = when (searchType) {
                     "nopol" -> Vehicle.VehicleSearchRequest.newBuilder()
@@ -428,14 +351,14 @@ class GrpcService(private val context: Context) {
                     Log.w("gRPC Service", "Token refresh retry failed (attempt $retryCount/$maxRetryAttempts): ${retryException.message}")
                     
                     // Wait a bit before next retry
-                    delay(1000)
+                    delay(300)
                 }
             } else {
                 retryCount++
                 Log.w("gRPC Service", "Token refresh failed (attempt $retryCount/$maxRetryAttempts)")
                 
                 // Wait a bit before next retry
-                delay(1000)
+                delay(300)
             }
         }
         
