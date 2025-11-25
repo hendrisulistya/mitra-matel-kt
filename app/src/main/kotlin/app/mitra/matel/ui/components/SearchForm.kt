@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.*
@@ -40,7 +41,7 @@ fun SearchForm(
     searchDurationMs: Long? = null,
     healthLatencyMs: Long? = null,
     healthStatus: String? = null,
-    lastResultError: Boolean? = null,
+
     onMicClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -81,14 +82,15 @@ fun SearchForm(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val latencyColor = when {
-                        healthLatencyMs == null -> MaterialTheme.colorScheme.onSurfaceVariant
-                        healthLatencyMs!! <= 20 -> androidx.compose.ui.graphics.Color.Blue
-                        healthLatencyMs in 21..300 -> androidx.compose.ui.graphics.Color(0xFF006400)
-                        healthLatencyMs in 301..400 -> androidx.compose.ui.graphics.Color.Yellow
-                        healthLatencyMs in 401..500 -> androidx.compose.ui.graphics.Color(0xFFFFA500)
-                        else -> androidx.compose.ui.graphics.Color.Red
-                    }
+                    val latencyColor = healthLatencyMs?.let { value ->
+                        when {
+                            value <= 20 -> androidx.compose.ui.graphics.Color.Blue
+                            value in 21..300 -> androidx.compose.ui.graphics.Color(0xFF006400)
+                            value in 301..400 -> androidx.compose.ui.graphics.Color(0xFFB8860B)
+                            value in 401..500 -> androidx.compose.ui.graphics.Color(0xFFFFA500)
+                            else -> androidx.compose.ui.graphics.Color.Red
+                        }
+                    } ?: MaterialTheme.colorScheme.onSurfaceVariant
                     val statusColor = when (healthStatus) {
                         "SERVING" -> androidx.compose.ui.graphics.Color(0xFF006400)
                         "NOT_SERVING" -> androidx.compose.ui.graphics.Color.Red
@@ -237,6 +239,10 @@ fun SearchForm(
                         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                         keyboardOptions = KeyboardOptions(
                             imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onSearch = { onSearch() },
+                            onDone = { onSearch() }
                         ),
                         decorationBox = { innerTextField ->
                             Row(

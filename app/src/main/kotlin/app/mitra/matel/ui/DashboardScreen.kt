@@ -362,7 +362,7 @@ fun DashboardScreen(
                     searchDurationMs = searchUiState.searchDurationMs,
                     healthLatencyMs = searchUiState.healthLatencyMs,
                     healthStatus = searchUiState.healthStatus,
-                    lastResultError = (searchUiState.error != null),
+
                     onMicClick = { 
                         handleSearchWithCheck { 
                             onNavigateToMicSearch() 
