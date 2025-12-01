@@ -26,6 +26,10 @@ object AppConfig {
      * App Version Information
      */
     const val APP_NAME = "Mitra Matel"
+    val VERSION_NAME: String
+        get() = BuildConfig.VERSION_NAME
+    val VERSION_BUILD: Int
+        get() = BuildConfig.BUILD_NUMBER
     
     /**
      * Debug Features
@@ -39,5 +43,5 @@ object AppConfig {
      * Get current environment name for display
      */
     fun getEnvironmentName(): String = if (IS_PRODUCTION) "Production" else "Development"
-    fun getAppVersion(): String = "0.9.811 (Build ${BuildConfig.BUILD_NUMBER})"+if (BuildConfig.IS_PRODUCTION) "-prod" else "-debug"
+
 }

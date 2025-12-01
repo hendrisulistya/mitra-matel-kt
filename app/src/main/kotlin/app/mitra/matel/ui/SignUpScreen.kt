@@ -609,7 +609,7 @@ fun SignUpScreen(
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 Text(
-                    text = "Version ${AppConfig.getAppVersion()}",
+                    text = "Version ${AppConfig.VERSION_NAME} (Build ${AppConfig.VERSION_BUILD})",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                     modifier = Modifier.align(Alignment.CenterHorizontally)

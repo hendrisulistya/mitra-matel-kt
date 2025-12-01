@@ -51,7 +51,7 @@ fun AboutContent(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = AppConfig.getAppVersion(),
+                    text = AppConfig.VERSION_NAME,
                     style = MaterialTheme.typography.bodyMedium,
                     color = Purple40.copy(alpha = 0.8f)
                 )

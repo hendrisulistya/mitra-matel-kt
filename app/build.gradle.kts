@@ -18,7 +18,7 @@ android {
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 11
-        versionName = "0.9.811"
+        versionName = rootProject.file("version_name.txt").readText().trim()
         
         // Add build number that increments with each build
         val buildNumberFile = rootProject.file("build_number.txt")

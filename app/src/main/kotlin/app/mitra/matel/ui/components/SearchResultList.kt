@@ -53,9 +53,9 @@ fun SearchResultList(
         modifier = modifier.fillMaxSize()
     ) {
         // Background vector image with version watermark
-        val versionText = "Version ${AppConfig.getAppVersion()}"
+        val versionText = "Version ${AppConfig.VERSION_NAME}"
         val density = LocalDensity.current
-        val textSizePx = with(density) { 6.dp.toPx() }
+        val textSizePx = with(density) { 8.dp.toPx() }
         val paddingPx = with(density) { 8.dp.toPx() }
         Image(
             painter = painterResource(id = R.drawable.ic_background),

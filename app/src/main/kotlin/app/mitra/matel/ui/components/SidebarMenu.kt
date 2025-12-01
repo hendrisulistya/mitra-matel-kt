@@ -240,7 +240,7 @@ fun SidebarMenu(
                         color = Purple40
                     )
                     Text(
-                        text = AppConfig.getAppVersion(),
+                        text = "${AppConfig.VERSION_NAME} (Build ${AppConfig.VERSION_BUILD})",
                         style = MaterialTheme.typography.labelSmall,
                         color = Purple40.copy(alpha = 0.6f)
                     )
