@@ -37,6 +37,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.mitra.matel.R
+import app.mitra.matel.AppConfig
 import app.mitra.matel.ui.screens.TermOfServiceContent
 import app.mitra.matel.ui.screens.PrivacyPolicyContent
 import app.mitra.matel.viewmodel.AuthViewModel
@@ -66,8 +67,8 @@ private fun isAllowedEmailDomain(email: String): Boolean {
 }
 
 @Composable
+@Suppress("DEPRECATION")
 fun SignUpScreen(
-    onBack: () -> Unit = {},
     onNavigateToSignIn: () -> Unit = {},
     onSignUpSuccess: () -> Unit = {}
 ) {
@@ -260,19 +261,23 @@ fun SignUpScreen(
         }
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.safeDrawing)
             .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 24.dp, vertical = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = 24.dp, vertical = 16.dp)
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
         // Header section with proportional spacing
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(0.15f),
+                .weight(0.10f),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -283,14 +288,15 @@ fun SignUpScreen(
             )
         }
 
-        // Form fields in a scrollable column with proportional weight
+        // Form fields in a scrollable column with IME-aware padding
         Column(
             modifier = Modifier
-                .weight(0.7f)
+                .weight(0.75f)
                 .fillMaxWidth()
+                .padding(top = 4.dp)
                 .verticalScroll(rememberScrollState())
-                .padding(top = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .imePadding(),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // Full Name field - inline label with error messages as placeholder
             OutlinedTextField(
@@ -313,7 +319,7 @@ fun SignUpScreen(
                     .graphicsLayer {
                         translationX = shakeFullNameOffset * 10f
                     },
-                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 11.sp),
                 isError = fullNameError
             )
 
@@ -349,7 +355,7 @@ fun SignUpScreen(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 11.sp),
                     isError = emailError != null || emailEmptyError
                 )
                 
@@ -386,7 +392,7 @@ fun SignUpScreen(
                     .graphicsLayer {
                         translationX = shakePhoneNumberOffset * 10f
                     },
-                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 11.sp),
                 isError = phoneNumberError
             )
 
@@ -436,7 +442,7 @@ fun SignUpScreen(
                     .graphicsLayer {
                         translationX = shakePasswordOffset * 10f
                     },
-                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 11.sp),
                 isError = passwordError != null || passwordEmptyError
             )
 
@@ -480,41 +486,12 @@ fun SignUpScreen(
                     .graphicsLayer {
                         translationX = shakeConfirmPasswordOffset * 10f
                     },
-                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 11.sp),
                 isError = confirmPasswordError != null || confirmPasswordEmptyError
             )
-        }
+            
+            Spacer(modifier = Modifier.height(8.dp))
 
-        // Bottom section with increased weight for visibility
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(0.25f),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Error message
-            errorMessage?.let {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.errorContainer
-                    )
-                ) {
-                    Text(
-                        text = it,
-                        modifier = Modifier.padding(12.dp),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
-
-            // Agreement checkbox
-            Column(
-                modifier = Modifier.fillMaxWidth()
-            ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -528,183 +505,121 @@ fun SignUpScreen(
                         checked = isAgreementChecked,
                         onCheckedChange = { 
                             isAgreementChecked = it
-                            agreementError = false // Clear error when checked
+                            agreementError = false
                         },
                         modifier = Modifier.padding(end = 8.dp),
                         colors = CheckboxDefaults.colors(
                             uncheckedColor = if (agreementError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     )
-                    
                     val annotatedText = buildAnnotatedString {
                         append("Dengan ini saya bersedia mematuhi ")
-                        
                         pushStringAnnotation(tag = "terms", annotation = "terms")
-                        withStyle(
-                            style = SpanStyle(
-                                color = MaterialTheme.colorScheme.primary,
-                                textDecoration = TextDecoration.Underline
-                            )
-                        ) {
-                            append("syarat dan ketentuan")
-                        }
+                        withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.primary, textDecoration = TextDecoration.Underline)) { append("syarat dan ketentuan") }
                         pop()
-                        
                         append(" serta ")
-                        
                         pushStringAnnotation(tag = "privacy", annotation = "privacy")
-                        withStyle(
-                            style = SpanStyle(
-                                color = MaterialTheme.colorScheme.primary,
-                                textDecoration = TextDecoration.Underline
-                            )
-                        ) {
-                            append("kebijakan privasi")
-                        }
+                        withStyle(style = SpanStyle(color = MaterialTheme.colorScheme.primary, textDecoration = TextDecoration.Underline)) { append("kebijakan privasi") }
                         pop()
                     }
-                    
                     ClickableText(
                         text = annotatedText,
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp
-                        ),
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp),
                         onClick = { offset ->
-                            annotatedText.getStringAnnotations(tag = "terms", start = offset, end = offset)
-                                .firstOrNull()?.let {
-                                    showTermsModal = true
-                                }
-                            annotatedText.getStringAnnotations(tag = "privacy", start = offset, end = offset)
-                                .firstOrNull()?.let {
-                                    showPrivacyModal = true
-                                }
+                            annotatedText.getStringAnnotations(tag = "terms", start = offset, end = offset).firstOrNull()?.let { showTermsModal = true }
+                            annotatedText.getStringAnnotations(tag = "privacy", start = offset, end = offset).firstOrNull()?.let { showPrivacyModal = true }
                         },
                         modifier = Modifier.weight(1f)
                     )
                 }
-            }
-
-            // Daftar Button
-            Button(
-                onClick = {
-                    errorMessage = null
-                    
-                    // Reset all field errors
-                    fullNameError = false
-                    phoneNumberError = false
-                    emailEmptyError = false
-                    passwordEmptyError = false
-                    confirmPasswordEmptyError = false
-                    agreementError = false
-                    
-                    // Check for empty fields and highlight them with shake animation
-                    var hasEmptyFields = false
-                    
-                    if (fullName.isBlank()) {
-                        fullNameError = true
-                        shakeFullName = true
-                        hasEmptyFields = true
-                    }
-                    
-                    if (phoneNumber.isBlank()) {
-                        phoneNumberError = true
-                        shakePhoneNumber = true
-                        hasEmptyFields = true
-                    }
-                    
-                    if (email.isBlank()) {
-                        emailEmptyError = true
-                        shakeEmail = true
-                        hasEmptyFields = true
-                    }
-                    
-                    if (password.isBlank()) {
-                        passwordEmptyError = true
-                        shakePassword = true
-                        hasEmptyFields = true
-                    }
-                    
-                    if (confirmPassword.isBlank()) {
-                        confirmPasswordEmptyError = true
-                        shakeConfirmPassword = true
-                        hasEmptyFields = true
-                    }
-                    
-                    if (!isAgreementChecked) {
-                        agreementError = true
-                        shakeAgreement = true
-                        hasEmptyFields = true
-                    }
-                    
-                    // Check for validation errors
-                    val hasValidationErrors = emailError != null || passwordError != null || confirmPasswordError != null
-                    
-                    if (hasEmptyFields || hasValidationErrors) {
-                        // Don't proceed if any field has errors
-                        return@Button
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    onClick = {
+                        errorMessage = null
+                        fullNameError = false
+                        phoneNumberError = false
+                        emailEmptyError = false
+                        passwordEmptyError = false
+                        confirmPasswordEmptyError = false
+                        agreementError = false
+                        var hasEmptyFields = false
+                        if (fullName.isBlank()) { fullNameError = true; shakeFullName = true; hasEmptyFields = true }
+                        if (phoneNumber.isBlank()) { phoneNumberError = true; shakePhoneNumber = true; hasEmptyFields = true }
+                        if (email.isBlank()) { emailEmptyError = true; shakeEmail = true; hasEmptyFields = true }
+                        if (password.isBlank()) { passwordEmptyError = true; shakePassword = true; hasEmptyFields = true }
+                        if (confirmPassword.isBlank()) { confirmPasswordEmptyError = true; shakeConfirmPassword = true; hasEmptyFields = true }
+                        if (!isAgreementChecked) { agreementError = true; shakeAgreement = true; hasEmptyFields = true }
+                        val hasValidationErrors = emailError != null || passwordError != null || confirmPasswordError != null
+                        if (hasEmptyFields || hasValidationErrors) {
+                            return@Button
+                        } else {
+                            viewModel.register(fullName, email, phoneNumber, password, confirmPassword)
+                        }
+                    },
+                    enabled = registerState !is RegisterState.Loading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(42.dp)
+                ) {
+                    if (registerState is RegisterState.Loading) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
+                            Text(text = "Mendaftar...", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        }
                     } else {
-                        // All validations passed
-                        viewModel.register(fullName, email, phoneNumber, password, confirmPassword)
+                        Text(text = "Daftar", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
-                },
-                enabled = registerState !is RegisterState.Loading,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-            ) {
-                if (registerState is RegisterState.Loading) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                errorMessage?.let {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
                     ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp
-                        )
                         Text(
-                            text = "Mendaftar...",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
+                            text = it,
+                            modifier = Modifier.padding(12.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            textAlign = TextAlign.Center
                         )
                     }
-                } else {
-                    Text(
-                        text = "Daftar",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
                 }
-            }
-
-            // Sign In link - positioned below Daftar button
-            Text(
-                text = "Sudah Punya Akun? Masuk",
-                style = MaterialTheme.typography.bodyMedium,
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.clickable { onNavigateToSignIn() }
-            )
-
-            // Contact admin link
-            Text(
-                text = "Kendala untuk mendaftar? Hubungi admin",
-                style = MaterialTheme.typography.bodySmall.copy(
-                    textDecoration = TextDecoration.Underline
-                ),
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.clickable {
-                    val message = "Saya kesulitan untuk mendaftar, mohon Bantuan nya"
-                    val adminPhone = "6281936706368"
-                    openAdminWhatsApp(context, adminPhone, message)
-                }
-            )
+                Text(
+                    text = "Sudah Punya Akun? Masuk",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .clickable { onNavigateToSignIn() }
+                )
+                Text(
+                    text = "Kendala untuk mendaftar? Hubungi admin",
+                    style = MaterialTheme.typography.bodySmall.copy(textDecoration = TextDecoration.Underline),
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .clickable {
+                            val message = "Saya kesulitan untuk mendaftar, mohon Bantuan nya"
+                            val adminPhone = "6281936706368"
+                            openAdminWhatsApp(context, adminPhone, message)
+                        }
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = "Version ${AppConfig.getAppVersion()}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
         }
+
+
     }
+
+}
 
     // Success Dialog
     if (registerState is RegisterState.Success) {
@@ -800,7 +715,7 @@ fun SignUpScreen(
 @Composable
 private fun SignUpPreview() {
     MaterialTheme {
-        SignUpScreen(onBack = {}, onNavigateToSignIn = {}, onSignUpSuccess = {})
+        SignUpScreen(onNavigateToSignIn = {}, onSignUpSuccess = {})
     }
 }
 

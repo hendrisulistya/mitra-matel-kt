@@ -39,5 +39,5 @@ object AppConfig {
      * Get current environment name for display
      */
     fun getEnvironmentName(): String = if (IS_PRODUCTION) "Production" else "Development"
-    fun getAppVersion(): String = "0.9.810 (Build ${BuildConfig.BUILD_NUMBER})"+if (BuildConfig.IS_PRODUCTION) "-prod" else "-debug"
+    fun getAppVersion(): String = "0.9.811 (Build ${BuildConfig.BUILD_NUMBER})"+if (BuildConfig.IS_PRODUCTION) "-prod" else "-debug"
 }

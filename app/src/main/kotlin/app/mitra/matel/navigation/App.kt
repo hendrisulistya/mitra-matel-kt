@@ -320,7 +320,6 @@ fun app() {
                 }
             ) {
                 SignInScreen(
-                    onBack = { navController.popBackStack() },
                     onSignInSuccess = {
                         navController.navigate("dashboard") {
                             // Clear back stack to prevent going back to login
@@ -347,7 +346,6 @@ fun app() {
                 }
             ) {
                 SignUpScreen(
-                    onBack = { navController.popBackStack() },
                     onNavigateToSignIn = { navController.navigate("signin") }
                 )
             }

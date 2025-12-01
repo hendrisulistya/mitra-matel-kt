@@ -28,11 +28,11 @@ import app.mitra.matel.viewmodel.AuthState
 import app.mitra.matel.viewmodel.AuthViewModel
 import app.mitra.matel.R
 import android.util.Log
+import app.mitra.matel.AppConfig
 import java.util.Locale
 
 @Composable
 fun SignInScreen(
-    onBack: () -> Unit = {},
     onSignInSuccess: () -> Unit = {},
     onNavigateToSignUp: () -> Unit = {}
 ) {
@@ -63,16 +63,20 @@ fun SignInScreen(
         }
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.safeDrawing)
-            .imePadding()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+            .padding(24.dp)
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .imePadding(),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
         // Logo
         Box(
             modifier = Modifier
@@ -215,13 +219,20 @@ fun SignInScreen(
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.clickable { onNavigateToSignUp() }
         )
+
+        Spacer(modifier = Modifier.weight(1f))
+        Text(
+            text = "Version ${AppConfig.getAppVersion()}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+        )
     }
+}
 
     // Conflict Modal
     if (loginState is AuthState.Conflict) {
         val conflict = (loginState as AuthState.Conflict).data
         
-        val conflictMessage = conflict.message ?: "Login attempt conflict"
         val conflictData = conflict.data
         
         AlertDialog(
@@ -234,7 +245,7 @@ fun SignInScreen(
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = conflict.error ?: conflictMessage,
+                        text = conflict.message ?: conflict.error,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -296,7 +307,7 @@ fun SignInScreen(
 @Composable
 private fun SignInPreview() {
     MaterialTheme {
-        SignInScreen(onBack = {}, onSignInSuccess = {}, onNavigateToSignUp = {})
+        SignInScreen(onSignInSuccess = {}, onNavigateToSignUp = {})
     }
 }
 
