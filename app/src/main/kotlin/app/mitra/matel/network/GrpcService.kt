@@ -5,7 +5,7 @@ import android.content.Context
 import grpc.Vehicle
 import grpc.VehicleServiceGrpcKt
 import io.grpc.ManagedChannel
-import io.grpc.ManagedChannelBuilder
+import io.grpc.okhttp.OkHttpChannelBuilder
 import io.grpc.Metadata
 import io.grpc.stub.MetadataUtils
 
@@ -66,26 +66,13 @@ class GrpcService(private val context: Context) {
     
     // EAGER initialization - create channel immediately with optimized connection pooling
     private val channel: ManagedChannel = run {
-        val builder = ManagedChannelBuilder.forAddress(ApiConfig.GRPC_HOST, ApiConfig.GRPC_PORT)
-            // ✅ OPTIMIZED: Faster connection establishment
-            .keepAliveTime(15, TimeUnit.SECONDS) // Reduced for faster detection
-            .keepAliveTimeout(5, TimeUnit.SECONDS) // Faster timeout for quicker recovery
-            .keepAliveWithoutCalls(true)
-            // ✅ PERFORMANCE: Larger message size for batch operations
-            .maxInboundMessageSize(8 * 1024 * 1024) // Increased for better throughput
-            // ✅ CONNECTION REUSE: Shorter idle timeout for more aggressive connection reuse
-            .idleTimeout(60, TimeUnit.SECONDS) // Reduced for faster reconnection
-            // ✅ METADATA OPTIMIZATION: Larger metadata for complex auth headers
-            .maxInboundMetadataSize(8192) // Increased for auth token flexibility
-            // ✅ CONNECTION POOLING: Enable HTTP/2 connection reuse
-            .maxInboundMessageSize(8 * 1024 * 1024)
-            // Add user agent for better Cloudflare compatibility
+        val builder = OkHttpChannelBuilder.forAddress(ApiConfig.GRPC_HOST, ApiConfig.GRPC_PORT)
             .userAgent("MitraMatel-Android/1.0")
-            
-        if (!ApiConfig.IS_PRODUCTION) {
+        if (ApiConfig.IS_PRODUCTION) {
+            builder.useTransportSecurity()
+        } else {
             builder.usePlaintext()
         }
-        
         builder.build()
     }
     
