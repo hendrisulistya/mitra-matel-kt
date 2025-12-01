@@ -12,15 +12,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
-import coil.decode.SvgDecoder
-import coil.request.ImageRequest
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.foundation.Image
 import app.mitra.matel.R
+import app.mitra.matel.AppConfig
 import app.mitra.matel.network.VehicleResult
 import app.mitra.matel.network.NetworkDebugHelper
 import android.net.ConnectivityManager
@@ -50,17 +52,30 @@ fun SearchResultList(
     Box(
         modifier = modifier.fillMaxSize()
     ) {
-        // Background SVG image
-        AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current)
-                .data(R.raw.ic_background)
-                .decoderFactory(SvgDecoder.Factory())
-                .crossfade(true)
-                .build(),
+        // Background vector image with version watermark
+        val versionText = "Version ${AppConfig.getAppVersion()}"
+        val density = LocalDensity.current
+        val textSizePx = with(density) { 6.dp.toPx() }
+        val paddingPx = with(density) { 8.dp.toPx() }
+        Image(
+            painter = painterResource(id = R.drawable.ic_background),
             contentDescription = "Background",
             modifier = Modifier
                 .fillMaxSize()
-                .align(Alignment.Center),
+                .align(Alignment.Center)
+                .drawWithContent {
+                    drawContent()
+                    val paint = android.graphics.Paint().apply {
+                        isAntiAlias = true
+                        color = android.graphics.Color.BLACK
+                        alpha = (0.4f * 255).toInt()
+                        textSize = textSizePx
+                    }
+                    val textWidth = paint.measureText(versionText)
+                    val x = size.width - paddingPx - textWidth
+                    val y = size.height - paddingPx
+                    drawContext.canvas.nativeCanvas.drawText(versionText, x, y, paint)
+                },
             contentScale = ContentScale.Fit,
             alpha = 0.15f
         )
